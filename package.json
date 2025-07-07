@@ -1,0 +1,38 @@
+{
+  "name": "@usekenny/plugin-composio",
+  "description": "Composio plugin for ElizaOS",
+  "type": "module",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/usekenny/plugin-composio.git"
+  },
+  "publishConfig": {
+    "registry": "https://kenny-685993304778.d.codeartifact.eu-west-3.amazonaws.com/npm/npm/"
+  },
+  "author": "Kody",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "start": "bun run dist/index.js",
+    "test": "bun test",
+    "format": "biome format --write .",
+    "lint": "biome lint --write .",
+    "check": "biome check --write .",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1.9.4",
+    "@types/bun": "latest",
+    "husky": "^9.1.7"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "composio-core": "^0.5.39"
+  }
+}
