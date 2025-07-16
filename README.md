@@ -47,7 +47,7 @@ COMPOSIO_USER_ID=default
 ```json
 {
   "name": "Assistant",
-  "plugins": ["@elizaos/plugin-composio"],
+  "plugins": ["@standujar/plugin-composio"],
   "modelProvider": "openrouter",
   "settings": {
     "secrets": {
