@@ -1,38 +1,58 @@
 {
-  "name": "@usekenny/plugin-composio",
-  "description": "Composio plugin for ElizaOS",
+  "name": "@standujar/plugin-composio",
+  "description": "Composio plugin for elizaOS",
+  "version": "1.2.9",
   "type": "module",
+  "main": "dist/index.js",
   "module": "dist/index.js",
   "types": "dist/index.d.ts",
   "repository": {
     "type": "git",
-    "url": "https://github.com/usekenny/plugin-composio.git"
+    "url": "git+https://github.com/standujar/plugin-composio.git"
   },
-  "publishConfig": {
-    "registry": "https://kenny-685993304778.d.codeartifact.eu-west-3.amazonaws.com/npm/npm/"
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    }
   },
-  "author": "Kody",
-  "license": "MIT",
-  "private": true,
-  "scripts": {
-    "build": "tsc",
-    "dev": "tsc --watch",
-    "start": "bun run dist/index.js",
-    "test": "bun test",
-    "format": "biome format --write .",
-    "lint": "biome lint --write .",
-    "check": "biome check --write .",
-    "prepare": "husky"
+  "files": ["dist"],
+  "dependencies": {
+    "@elizaos/core": "^1.2.9",
+    "@composio/core": "next",
+    "@composio/vercel": "latest"
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",
-    "@types/bun": "latest",
-    "husky": "^9.1.7"
+    "husky": "^9.1.7",
+    "prettier": "3.5.3",
+    "tsup": "8.4.0",
+    "typescript": "5.8.2"
   },
-  "peerDependencies": {
-    "typescript": "^5"
+  "scripts": {
+    "start": "elizaos start",
+    "test-with-cli": "cd ../cli && bun run build && cd ../plugin-starter && elizaos test",
+    "dev": "elizaos dev",
+    "build": "tsup",
+    "lint": "biome lint --write .",
+    "test": "elizaos test",
+    "publish": "elizaos plugin publish",
+    "format": "biome format --write .",
+    "format:check": "prettier --check ./src",
+    "check": "biome check --write ."
   },
-  "dependencies": {
-    "composio-core": "^0.5.39"
+  "gitHead": "b165ad83e5f7a21bc1edbd83374ca087e3cd6b33",
+  "platform": "universal",
+  "agentConfig": {
+    "pluginType": "elizaos:plugin:1.0.0",
+    "pluginParameters": {
+      "COMPOSIO_API_KEY": {
+        "type": "string",
+        "description": "Composio API key for accessing tools and integrations"
+      }
+    }
   }
 }
