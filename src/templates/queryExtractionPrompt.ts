@@ -6,38 +6,45 @@ export const queryExtractionPrompt = ({
   connectedApps: string[];
   conversationContext: string;
   userRequest: string;
-}) => `Analyze the user request and return MULTIPLE queries as a JSON array.
+}) => `Analyze the user request and extract ALL necessary queries in logical order.
 
 Connected apps: ${connectedApps.join(', ')}
 User request: "${userRequest}"
 ${conversationContext ? `Context: ${conversationContext}` : ''}
 
-⚠️ IMPORTANT: Most requests need MULTIPLE queries! Don't stop at the first action!
+🔴 CRITICAL: Break down the request into MULTIPLE atomic actions!
 
-RULES:
-1. Use EXACTLY the connected app name from the list above
-2. Query must be 3-4 words MAX (verb + object)
-3. NO usernames, IDs, or specific values
-4. Return a JSON array with MULTIPLE objects
-5. ALWAYS include prerequisite actions
+LOGICAL DECOMPOSITION RULES:
+1. BEFORE creating → you must LIST/FIND where to create
+2. BEFORE updating → you must FIND what to update  
+3. BEFORE deleting → you must SEARCH/LIST what to delete
+4. BEFORE assigning → you must LIST available assignees or existing members / teams
+5. BEFORE adding to something → you must GET that something first
+6. BEFORE filtering → you must LIST all items first
 
-THINK: What do I need to find/list BEFORE I can do the main action?
+QUERY FORMAT:
+- Use EXACTLY the app name from connected apps
+- Each query: 3-4 words MAX (verb + object)
+- NO specific values, IDs or names in queries
+- Return JSON array of {"toolkit": "app", "query": "action object"}
 
-WORKFLOW PATTERNS (notice MULTIPLE queries):
-- "Create issue/task" → 2 QUERIES: ["list projects", "create issue"]
-- "Update item" → 2 QUERIES: ["find item", "update item"]
-- "Send message to channel" → 2 QUERIES: ["list channels", "send message"]
-- "Comment on PR" → 2 QUERIES: ["list pull requests", "create comment"]
-- "Delete old issues" → 2 QUERIES: ["search issues", "delete issue"]
+THINK LIKE THIS:
+User wants to "create a ticket" →
+1. I need to LIST PROJECTS first (to know where to create)
+2. Maybe LIST TEAMS too (if project needs team)
+3. Maybe LIST USERS (if I need to assign)
+4. Then CREATE ISSUE
 
-CORRECT EXAMPLES:
-[{"toolkit": "github", "query": "list repositories"}]
-[{"toolkit": "github", "query": "search users"}, {"toolkit": "github", "query": "list repositories"}]
-[{"toolkit": "linear", "query": "list projects"}, {"toolkit": "linear", "query": "list users"}]
+User wants to "update something" →
+1. I need to SEARCH/LIST items first
+2. Then UPDATE item
 
-WRONG EXAMPLES:
-{"actions": [...]} ← NO wrapper object
-[{"toolkit": "github", "query": "search repositories for user standujar"}] ← Too many words
-[{"toolkit": "connected_app", "query": "list items"}] ← Must use actual app name
+⚠️ ALWAYS err on the side of MORE queries rather than fewer!
+Better to have extra data than to fail because of missing context.
 
-Return JSON array:`;
+EXAMPLE OUTPUTS (notice the logical flow):
+[{"toolkit": "linear", "query": "list teams"}, {"toolkit": "linear", "query": "list projects"}, {"toolkit": "linear", "query": "create issue"}]
+[{"toolkit": "github", "query": "list repositories"}, {"toolkit": "github", "query": "create issue"}]
+[{"toolkit": "slack", "query": "list channels"}, {"toolkit": "slack", "query": "send message"}]
+
+Return JSON array with queries in logical execution order:`;
