@@ -1,28 +1,26 @@
+/**
+ * Generates a contextual prompt for tool execution
+ * @param conversationContext - Previous conversation context
+ * @param userRequest - The workflow use case to execute
+ * @returns Formatted prompt string for the LLM
+ */
 export const contextualPrompt = ({
-  conversationContext,
   userRequest,
+  conversationContext,
 }: {
-  conversationContext: string;
   userRequest: string;
+  conversationContext?: string;
 }) => {
-  let prompt = '';
-
-  if (conversationContext) {
-    prompt = `Given this conversation:
-${conversationContext}
-
-`;
-  }
-  prompt += `User's request: ${userRequest}
+  const contextSection = conversationContext ? `${conversationContext}\n\n` : '';
+  
+  return `${contextSection}Task to complete: ${userRequest}
 
 IMPORTANT INSTRUCTIONS:
-1. Execute the necessary tools to fulfill the user's request
-2. After executing tools, ALWAYS provide a clear, formatted response that presents the results
-3. Structure your response to be helpful and easy to read on a chat interface
-4. If you retrieved data, present it in a clear format
-5. Never just say "Tools executed successfully" - always explain what was done and show the results
+1. You have been provided with specific tools to complete this task
+2. Execute the tools in the logical order described in the task
+3. Use the exact values mentioned in the task description
+4. Consider the conversation context to understand any references to previous messages if it is provided and relevant to the task
+5. After executing all necessary tools, summarize what was accomplished in a way that is easy to understand and follow up on.
 
-Please execute the appropriate tools and then provide a comprehensive response with the results.`;
-
-  return prompt;
+Execute the workflow step by step and provide a clear summary of the results.`;
 };

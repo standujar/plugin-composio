@@ -1,7 +1,7 @@
 {
   "name": "@standujar/plugin-composio",
   "description": "Composio plugin for elizaOS",
-  "version": "1.2.10",
+  "version": "1.2.11",
   "type": "module",
   "main": "dist/index.js",
   "module": "dist/index.js",
@@ -52,6 +52,29 @@
       "COMPOSIO_API_KEY": {
         "type": "string",
         "description": "Composio API key for accessing tools and integrations"
+      },
+      "COMPOSIO_USER_ID": {
+        "type": "string",
+        "description": "Default user ID for Composio operations (optional)",
+        "default": "default"
+      },
+      "COMPOSIO_WORKFLOW_EXTRACTION_TEMPERATURE": {
+        "type": "number",
+        "description": "Temperature for LLM when understanding user intent and extracting workflow (0-1)",
+        "default": 0.7,
+        "optional": true
+      },
+      "COMPOSIO_TOOL_EXECUTION_TEMPERATURE": {
+        "type": "number",
+        "description": "Temperature for LLM when executing tools with precise parameters (0-1)",
+        "default": 0.1,
+        "optional": true
+      },
+      "COMPOSIO_DEFAULT_USER_ID": {
+        "type": "string",
+        "description": "Default user ID if not specified in settings",
+        "default": "default",
+        "optional": true
       }
     }
   }

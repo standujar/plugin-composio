@@ -1,9 +1,15 @@
 import type { IAgentRuntime } from '@elizaos/core';
-import { COMPOSIO_DEFAULTS } from '../constants';
 import type { ComposioServiceConfig } from '../types';
+import { COMPOSIO_DEFAULTS } from './defaults';
+
+// Re-export configuration utilities
+export * from './defaults';
+export * from './env';
 
 /**
  * Extracts Composio configuration from runtime settings
+ * @param runtime - ElizaOS agent runtime instance
+ * @returns Composio service configuration or null if API key is missing
  */
 export function getComposioConfig(runtime: IAgentRuntime): ComposioServiceConfig | null {
   const apiKey = runtime.getSetting('COMPOSIO_API_KEY') as string;

@@ -1,151 +1,252 @@
-# Composio Plugin for ElizaOS
+# 🔌 Composio Plugin for ElizaOS
 
-A powerful ElizaOS plugin that integrates **250+ external tool integrations** through [Composio](https://composio.dev). This plugin enables your Eliza agent to interact with tools like GitHub, Slack, Google Drive, Notion, and many more directly through natural language.
+<div align="center">
 
-## Features
+[![npm version](https://img.shields.io/npm/v/@standujar/plugin-composio.svg)](https://www.npmjs.com/package/@standujar/plugin-composio)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![ElizaOS Compatible](https://img.shields.io/badge/ElizaOS-Compatible-green.svg)](https://github.com/elizaOS/eliza)
 
-- 🔗 **250+ Integrations**: Access to GitHub, Slack, Google Workspace, Notion, Jira, and more
-- 🤖 **AI-Driven Tool Selection**: Automatically chooses the right tools based on user requests
-- 🔐 **Secure Authentication**: Handles OAuth and API key management through Composio
-- 🚀 **Easy Integration**: Seamlessly works with Eliza's core tool system
-- 📝 **Function Calling**: Uses Eliza's enhanced function calling capabilities
+A powerful ElizaOS plugin that integrates **250+ external tool integrations** through [Composio](https://composio.dev). Enable your AI agent to interact with GitHub, Slack, Linear, Google Drive, Notion, and hundreds more services through natural language.
 
-## Installation
+[Features](#features) • [Installation](#installation) • [Configuration](#configuration) • [Usage](#usage) • [API Reference](#api-reference) • [Contributing](#contributing)
 
-1. Install the plugin:
+</div>
+
+## ✨ Features
+
+- 🔗 **250+ Integrations**: Connect to popular services like GitHub, Slack, Linear, Google Workspace, Notion, Jira, and more
+- 🤖 **AI-Powered Tool Selection**: Intelligent semantic search finds the right tools based on natural language requests
+- 🔐 **Secure Authentication**: OAuth and API key management handled by Composio
+- 🚀 **Zero Configuration**: Works out of the box with connected apps
+- 📝 **Vercel AI SDK Integration**: Seamless integration with ElizaOS's function calling
+- ⚡ **Smart Workflow Generation**: Automatically creates multi-step workflows from user requests
+- 🎯 **Context-Aware**: Understands conversation context for better tool selection
+
+## 📦 Installation
+
 ```bash
+# Using bun (recommended)
 bun add @standujar/plugin-composio
+
+# Using npm
+npm install @standujar/plugin-composio
+
+# Using yarn
+yarn add @standujar/plugin-composio
 ```
 
-2. Add to your Eliza character configuration:
-```json
-{
-  "plugins": ["@standujar/plugin-composio"]
-}
-```
+## ⚙️ Configuration
 
-## Configuration
-
-### Required Environment Variables
+### Environment Variables
 
 ```bash
-# Composio API Key (required)
+# Required: Composio API Key
 COMPOSIO_API_KEY=your_composio_api_key
 
-# Optional: User ID for multi-user scenarios
-COMPOSIO_USER_ID=default
+# Optional: Default user ID (default: "default")
+COMPOSIO_USER_ID=your_user_id
+
+# Optional: Fine-tuning parameters
+COMPOSIO_WORKFLOW_EXTRACTION_TEMPERATURE=0.7    # LLM temperature for understanding user intent (default: 0.7)
+COMPOSIO_TOOL_EXECUTION_TEMPERATURE=0.1         # LLM temperature for tool execution (default: 0.1)
 ```
 
-### Getting Your Composio API Key
+### Character Configuration
 
-1. Sign up at [Composio](https://composio.dev)
-2. Generate an API key from your dashboard
-3. Connect the apps you want to use (GitHub, Slack, etc.)
-
-### Character Configuration Example
+Add the plugin to your ElizaOS character configuration:
 
 ```json
 {
-  "name": "Assistant",
+  "name": "MyAssistant",
   "plugins": ["@standujar/plugin-composio"],
-  "modelProvider": "openrouter",
   "settings": {
     "secrets": {
-      "COMPOSIO_API_KEY": "your_api_key_here"
+      "COMPOSIO_API_KEY": "{{COMPOSIO_API_KEY}}",
+      "COMPOSIO_USER_ID": "{{COMPOSIO_USER_ID}}"
     }
   }
 }
 ```
 
-## Usage
+### Getting Started with Composio
 
-Once configured, your Eliza agent can automatically use Composio tools. Here are some example interactions:
+1. **Sign up** at [Composio](https://composio.dev)
+2. **Generate an API key** from your dashboard
+3. **Connect your apps** - Follow the [Quickstart Guide](https://docs.composio.dev/getting-started/quickstart)
+4. **Add the API key** to your environment
 
-### GitHub Integration
+📚 **Documentation**:
+- [Welcome Guide](https://docs.composio.dev/getting-started/welcome)
+- [Installation](https://docs.composio.dev/getting-started/installation)
+- [Full Documentation](https://docs.composio.dev/)
+
+## 🎯 Usage
+
+The plugin automatically processes natural language requests and executes the appropriate tools through intelligent workflows.
+
+### Example Interactions
+
+#### 📊 Linear Integration - Multi-step Workflow
+
 ```
-User: "Create a new repository called 'my-project' on GitHub"
-Assistant: I'll create a new GitHub repository for you...
-[Uses GITHUB_CREATE_REPO tool automatically]
+User: Create a new issue in Linear for the project "My Project V1" and assign it to s.andujar
+Assistant: I'll create a new issue in Linear for you. Let me handle this step by step...
+
+Workflow executed:
+1. LINEAR_LIST_LINEAR_PROJECTS - Find the "My Project V1" project
+2. LINEAR_LIST_LINEAR_TEAMS - Get team members to find s.andujar
+3. LINEAR_CREATE_LINEAR_ISSUE - Create the issue with all details
+4. LINEAR_LIST_LINEAR_ISSUES - Verify the issue was created
+
+✅ Issue created successfully: "New task" assigned to s.andujar in Kenny V1
 ```
 
-### Slack Integration
+#### 🐙 GitHub Integration - Smart PR Creation
+
 ```
-User: "Send a message to the #general channel saying 'Hello team!'"
-Assistant: I'll send that message to the Slack channel...
-[Uses SLACK_SEND_MESSAGE tool automatically]
+User: Create a PR from my feature branch to main with last commits summary
+Assistant: I'll analyze your branch and create a comprehensive PR...
+
+Workflow executed:
+1. GITHUB_GET_CURRENT_BRANCH - Identify your feature branch
+2. GITHUB_LIST_COMMITS - Get recent commits for context
+3. GITHUB_COMPARE_BRANCHES - Check differences with main
+4. GITHUB_CREATE_PULL_REQUEST - Create PR with auto-generated description
+
+✅ PR #42 created: "Feature: Add user authentication" with 5 commits
 ```
 
-### Google Drive Integration
+#### 💬 Slack Integration - Context-Aware Messaging
+
 ```
-User: "List all files in my Google Drive"
-Assistant: Let me fetch your Google Drive files...
-[Uses GOOGLEDRIVE_LIST_FILES tool automatically]
+User: Send our standup notes to the team channel
+Assistant: I'll format and send the standup notes to your team...
+
+Workflow executed:
+1. SLACK_LIST_CHANNELS - Find the appropriate team channel
+2. SLACK_GET_CHANNEL_MEMBERS - Verify team members
+3. SLACK_SEND_MESSAGE - Send formatted standup notes
+
+✅ Message sent to #team-standup with 12 member mentions
 ```
 
-## How It Works
+### How It Works
 
-1. **Tool Discovery**: The plugin automatically fetches available tools from Composio based on your connected apps
-2. **Smart Selection**: When you make a request, Eliza's AI model automatically selects the appropriate Composio tools
-3. **Execution**: The selected tools are executed through Composio's secure API
-4. **Response**: Results are processed and returned as natural language responses
+```mermaid
+graph TD
+    A[User Request] --> B[Workflow Extraction]
+    B --> C{Select Toolkit}
+    C --> D[COMPOSIO_SEARCH_TOOLS]
+    D --> E[Discover Relevant Tools]
+    E --> F[Execute Tools in Sequence]
+    F --> G[Natural Language Response]
+    
+    style A fill:#e1f5fe
+    style G fill:#c8e6c9
+    style D fill:#fff3e0
+```
 
-## Supported Integrations
+### Workflow Intelligence
 
-The plugin supports all Composio integrations, including:
+The plugin understands complex requests and automatically:
+- 🔍 **Discovers prerequisites** - Lists projects before creating issues
+- 🔗 **Chains operations** - Fetches data needed for subsequent steps  
+- ✅ **Verifies results** - Confirms actions completed successfully
+- 🧠 **Handles context** - Uses conversation history for better results
 
-- **Development**: GitHub, GitLab, Jira, Linear
-- **Communication**: Slack, Discord, Microsoft Teams
-- **Productivity**: Google Workspace, Microsoft 365, Notion
-- **Storage**: Google Drive, Dropbox, OneDrive
-- **Marketing**: Mailchimp, HubSpot, Salesforce
-- **And 200+ more...
 
-## Development
+## 🛠️ Technical Details
+
+### Architecture
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant P as Plugin
+    participant C as Composio API
+    participant T as Tool (GitHub/Slack/etc)
+    
+    U->>P: Natural language request
+    P->>P: Extract workflow & toolkit
+    P->>C: COMPOSIO_SEARCH_TOOLS
+    C-->>P: Relevant tools list
+    P->>C: Execute tools.get()
+    C-->>P: Tool definitions
+    P->>T: Execute tool with params
+    T-->>P: Results
+    P->>U: Natural response
+```
+
+### Key Components
+
+- **ComposioService**: Manages Composio client and tool execution
+- **useComposioToolsAction**: Main action handler for tool execution
+- **Smart Tool Search**: Semantic search for finding the right tools
+- **Vercel AI Integration**: Native support for Vercel AI SDK
+
+## 🔍 Debugging
+
+Enable debug logging to troubleshoot issues:
 
 ```bash
-# Start development with hot-reloading
-bun run dev
+LOG_LEVEL=debug bun start
+```
+
+Common debug points:
+- Workflow extraction from user request
+- Tool search results from COMPOSIO_SEARCH_TOOLS
+- Tool execution parameters
+- Error handling for unconnected apps
+
+## 🤝 Contributing
+
+We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
+
+### Development Setup
+
+```bash
+# Clone the repository
+git clone https://github.com/standujar/plugin-composio.git
+
+# Install dependencies
+bun install
+
+# Run tests
+bun test
 
 # Build the plugin
 bun run build
 
-# Test the plugin
-bun run test
+# Run in development mode
+bun run dev
 ```
 
-### Custom User ID
+### Code Style
 
-For multi-user scenarios, you can set different user IDs:
+- TypeScript with strict mode
+- ESLint and Prettier for formatting
+- JSDoc comments for all public APIs
+- Comprehensive error handling
 
-```bash
-COMPOSIO_USER_ID=user_123
-```
+## 📄 License
 
-## Troubleshooting
+This plugin is licensed under the MIT License. See [LICENSE](LICENSE) file for details.
 
-### Common Issues
+## 🆘 Support
 
-1. **"No tools available"**: Ensure you have connected apps in your Composio dashboard
-2. **Authentication errors**: Check your API key and app connections
-3. **Tool execution fails**: Verify app permissions and connection status
+- **Documentation**: [Composio Docs](https://docs.composio.dev)
+- **ElizaOS**: [ElizaOS GitHub](https://github.com/elizaOS/eliza)
+- **Issues**: [GitHub Issues](https://github.com/standujar/plugin-composio/issues)
+- **Discord**: Join the ElizaOS Discord community
 
-### Debug Mode
+## 🚀 Roadmap
 
-Enable debug logging:
-```bash
-LOG_LEVEL=debug
-```
+- [ ] Connect new Apps from Action
+- [ ] List Connected Apps from Action
+- [ ] Composio Trigger creation from Action
 
-## Contributing
+---
 
-Contributions are welcome! Please read our contributing guidelines and submit pull requests.
-
-## License
-
-This plugin is licensed under the same license as ElizaOS.
-
-## Support
-
-- [Composio Documentation](https://docs.composio.dev)
-- [ElizaOS Documentation](https://github.com/elizaOS/eliza)
-- [GitHub Issues](https://github.com/standujar/plugin-composio/issues)
+<div align="center">
+Made with ❤️ by the ElizaOS community
+</div>
