@@ -1,3 +1,10 @@
+/**
+ * Generates a prompt to extract workflow information from user request
+ * @param connectedApps - List of connected app names
+ * @param conversationContext - Previous conversation context
+ * @param userRequest - The user's current request
+ * @returns Formatted prompt string for workflow extraction
+ */
 export const queryExtractionPrompt = ({
   connectedApps,
   conversationContext,
@@ -6,45 +13,46 @@ export const queryExtractionPrompt = ({
   connectedApps: string[];
   conversationContext: string;
   userRequest: string;
-}) => `Analyze the user request and extract ALL necessary queries in logical order.
+}) => `Analyze the user request and generate a complete workflow description.
 
-Connected apps: ${connectedApps.join(', ')}
 User request: "${userRequest}"
 ${conversationContext ? `Context: ${conversationContext}` : ''}
 
-🔴 CRITICAL: Break down the request into MULTIPLE atomic actions!
+Connected apps available: ${connectedApps.join(', ')}
 
-LOGICAL DECOMPOSITION RULES:
-1. BEFORE creating → you must LIST/FIND where to create
-2. BEFORE updating → you must FIND what to update  
-3. BEFORE deleting → you must SEARCH/LIST what to delete
-4. BEFORE assigning → you must LIST available assignees or existing members / teams
-5. BEFORE adding to something → you must GET that something first
-6. BEFORE filtering → you must LIST all items first
+Your task is to:
+1. Identify which app/service (toolkit) from the connected apps above is most relevant for this request
+2. Create a comprehensive use case description that explains the complete workflow
 
-QUERY FORMAT:
-- Use EXACTLY the app name from connected apps
-- Each query: 3-4 words MAX (verb + object)
-- NO specific values, IDs or names in queries
-- Return JSON array of {"toolkit": "app", "query": "action object"}
+IMPORTANT: 
+- You MUST select ONE toolkit from the connected apps list above
+- The use case should be a detailed description of what needs to be done
+- Include all logical steps and dependencies in your workflow description
 
-THINK LIKE THIS:
-User wants to "create a ticket" →
-1. I need to LIST PROJECTS first (to know where to create)
-2. Maybe LIST TEAMS too (if project needs team)
-3. Maybe LIST USERS (if I need to assign)
-4. Then CREATE ISSUE
+Return a JSON object with:
+{
+  "toolkit": "the_connected_app_name",
+  "use_case": "A detailed description of the complete workflow including all steps needed to fulfill the user's request. Be specific about what needs to be done, in what order, and what data is required."
+}
 
-User wants to "update something" →
-1. I need to SEARCH/LIST items first
-2. Then UPDATE item
+EXAMPLES:
 
-⚠️ ALWAYS err on the side of MORE queries rather than fewer!
-Better to have extra data than to fail because of missing context.
+User: "Create a new issue in Linear"
+Response: {
+  "toolkit": "linear",
+  "use_case": "Create a new issue in Linear. This requires first listing available projects and teams members of the project to determine where to create the issue, then creating the issue with the appropriate title, description, and assignment."
+}
 
-EXAMPLE OUTPUTS (notice the logical flow):
-[{"toolkit": "linear", "query": "list teams"}, {"toolkit": "linear", "query": "list projects"}, {"toolkit": "linear", "query": "create issue"}]
-[{"toolkit": "github", "query": "list repositories"}, {"toolkit": "github", "query": "create issue"}]
-[{"toolkit": "slack", "query": "list channels"}, {"toolkit": "slack", "query": "send message"}]
+User: "Update the status of my GitHub PR"
+Response: {
+  "toolkit": "github",
+  "use_case": "Update the status of a GitHub pull request. This involves searching for the user's pull requests, identifying the specific PR to update, and then modifying its status or adding comments as requested."
+}
 
-Return JSON array with queries in logical execution order:`;
+User: "Send a message to the engineering channel"
+Response: {
+  "toolkit": "slack",
+  "use_case": "Send a message to the engineering channel in Slack. This requires listing available channels to find the engineering channel, then composing and sending the message to that specific channel."
+}
+
+Return ONLY the JSON object:`;
