@@ -34,15 +34,18 @@ import {
 } from '../utils';
 
 export const useComposioToolsSequentialAction: Action = {
-  name: 'USE_COMPOSIO_TOOLS_SEQUENTIAL',
+  name: 'USE_COMPOSIO_TOOLS',
   similes: [
-    'CALL_COMPOSIO_TOOLS_STEP_BY_STEP',
-    'USE_TOOLS_SEQUENTIALLY',
-    'EXECUTE_TOOLS_ONE_BY_ONE',
-    'RUN_COMPOSIO_TOOLS_IN_SEQUENCE',
-    'COMPOSIO_SEQUENTIAL_ACTION',
+    'CALL_COMPOSIO_TOOL',
+    'USE_TOOL',
+    'CALL_TOOL',
+    'EXECUTE_COMPOSIO_TOOL',
+    'RUN_COMPOSIO_TOOL',
+    'INVOKE_COMPOSIO_TOOL',
+    'USE_COMPOSIO',
+    'COMPOSIO_ACTION',
   ],
-  description: 'Use Composio tools sequentially with feedback at each step',
+  description: 'Use Composio tools to perform tasks with external integrations',
 
   validate: async (runtime: IAgentRuntime, _message: Memory, _state?: State): Promise<boolean> => {
     const composioService = runtime.getService<ComposioService>(COMPOSIO_SERVICE_NAME);

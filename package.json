@@ -76,6 +76,12 @@
         "description": "Default user ID if not specified in settings",
         "default": "default",
         "optional": true
+      },
+      "COMPOSIO_EXECUTION_MODE": {
+        "type": "string",
+        "description": "Execution mode for tool execution",
+        "default": "sequential",
+        "optional": true
       }
     }
   }

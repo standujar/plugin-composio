@@ -50,6 +50,9 @@ COMPOSIO_API_KEY=your_composio_api_key
 # Optional: Default user ID (default: "default")
 COMPOSIO_USER_ID=your_user_id
 
+# Optional: Execution mode (default: "parallel")
+COMPOSIO_EXECUTION_MODE=parallel    # Options: "parallel" | "sequential"
+
 # Optional: Fine-tuning parameters
 COMPOSIO_WORKFLOW_EXTRACTION_TEMPERATURE=0.7    # LLM temperature for understanding user intent (default: 0.7)
 COMPOSIO_TOOL_EXECUTION_TEMPERATURE=0.3         # LLM temperature for tool execution (default: 0.3)
@@ -90,20 +93,22 @@ The plugin automatically processes natural language requests and executes the ap
 
 ### Execution Modes
 
-#### 🚀 Standard Execution (Default)
-Best for simple or independent tasks:
+Set the execution mode via the `COMPOSIO_EXECUTION_MODE` environment variable:
+
+#### 🚀 Parallel Execution (Default)
+`COMPOSIO_EXECUTION_MODE=parallel`
 - All tools executed in one LLM call
 - Single response with complete results
 - Lower token usage
 - No intermediate updates
-- Ideal for straightforward operations
+- Best for simple or independent tasks
 
-#### 📋 Sequential Execution (Step-by-Step)
-Best for complex workflows with dependencies:
+#### 📋 Sequential Execution
+`COMPOSIO_EXECUTION_MODE=sequential`
 - Step-by-step progress updates
 - Intermediate results visible to user
 - Context passed between steps
-- Ideal for multi-stage operations
+- Best for complex workflows with dependencies
 
 ### Example Interactions
 

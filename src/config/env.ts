@@ -27,3 +27,18 @@ export const getEnvBoolean = (key: string, defaultValue: boolean): boolean => {
   if (value === undefined) return defaultValue;
   return value.toLowerCase() === 'true';
 };
+
+/**
+ * Composio execution mode configuration
+ */
+export type ComposioExecutionMode = 'parallel' | 'sequential';
+
+/**
+ * Get Composio execution mode from environment
+ * Defaults to 'parallel' for backward compatibility
+ */
+export const getComposioExecutionMode = (): ComposioExecutionMode => {
+  const mode = process.env.COMPOSIO_EXECUTION_MODE?.toLowerCase();
+  if (mode === 'sequential') return 'sequential';
+  return 'parallel';
+};
