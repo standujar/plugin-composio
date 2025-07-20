@@ -21,6 +21,10 @@ A powerful ElizaOS plugin that integrates **250+ external tool integrations** th
 - 📝 **Vercel AI SDK Integration**: Seamless integration with ElizaOS's function calling
 - ⚡ **Smart Workflow Generation**: Automatically creates multi-step workflows from user requests
 - 🎯 **Context-Aware**: Understands conversation context for better tool selection
+- 🔄 **Two Execution Modes**: 
+  - **Parallel**: Execute multiple tools simultaneously for speed
+  - **Sequential**: Step-by-step execution with intermediate feedback
+- 💡 **Token Optimization**: Smart truncation and context management for efficient LLM usage
 
 ## 📦 Installation
 
@@ -48,7 +52,7 @@ COMPOSIO_USER_ID=your_user_id
 
 # Optional: Fine-tuning parameters
 COMPOSIO_WORKFLOW_EXTRACTION_TEMPERATURE=0.7    # LLM temperature for understanding user intent (default: 0.7)
-COMPOSIO_TOOL_EXECUTION_TEMPERATURE=0.1         # LLM temperature for tool execution (default: 0.1)
+COMPOSIO_TOOL_EXECUTION_TEMPERATURE=0.3         # LLM temperature for tool execution (default: 0.3)
 ```
 
 ### Character Configuration
@@ -82,52 +86,66 @@ Add the plugin to your ElizaOS character configuration:
 
 ## 🎯 Usage
 
-The plugin automatically processes natural language requests and executes the appropriate tools through intelligent workflows.
+The plugin automatically processes natural language requests and executes the appropriate tools through intelligent workflows. You can choose between two execution modes based on your needs:
+
+### Execution Modes
+
+#### 🚀 Standard Execution (Default)
+Best for simple or independent tasks:
+- All tools executed in one LLM call
+- Single response with complete results
+- Lower token usage
+- No intermediate updates
+- Ideal for straightforward operations
+
+#### 📋 Sequential Execution (Step-by-Step)
+Best for complex workflows with dependencies:
+- Step-by-step progress updates
+- Intermediate results visible to user
+- Context passed between steps
+- Ideal for multi-stage operations
 
 ### Example Interactions
 
-#### 📊 Linear Integration - Multi-step Workflow
+#### 📊 Linear Integration - Sequential Workflow with Step-by-Step Updates
 
 ```
 User: Create a new issue in Linear for the project "My Project V1" and assign it to s.andujar
 Assistant: I'll create a new issue in Linear for you. Let me handle this step by step...
 
-Workflow executed:
-1. LINEAR_LIST_LINEAR_PROJECTS - Find the "My Project V1" project
-2. LINEAR_LIST_LINEAR_TEAMS - Get team members to find s.andujar
-3. LINEAR_CREATE_LINEAR_ISSUE - Create the issue with all details
-4. LINEAR_LIST_LINEAR_ISSUES - Verify the issue was created
+[Step 1/4] Finding Linear projects...
+→ Found project Kenny V1 (ID: 9fbaaf04-3e8a-4c4f-b0e9-ff7c3eb96b32)
 
-✅ Issue created successfully: "New task" assigned to s.andujar in Kenny V1
+[Step 2/4] Getting team members...
+→ Found user s.andujar (ID: d19c7a59-9f23-4f5b-b4e7-8f3c9d5a7b21)
+
+[Step 3/4] Creating the issue...
+→ Issue created with ID: KEN-123
+
+[Step 4/4] Verifying issue creation...
+✅ Issue created successfully:
+- Title: "New task"
+- ID: KEN-123
+- Assigned to: s.andujar
+- Project: Kenny V1
+- Status: Backlog
+- URL: https://linear.app/team/issue/KEN-123
 ```
 
-#### 🐙 GitHub Integration - Smart PR Creation
+#### 💬 Slack Integration - Single Response Mode
 
 ```
-User: Create a PR from my feature branch to main with last commits summary
-Assistant: I'll analyze your branch and create a comprehensive PR...
+User: Send a summary of today's standup notes to the team channel
+Assistant: I've sent the standup summary to your team channel.
 
-Workflow executed:
-1. GITHUB_GET_CURRENT_BRANCH - Identify your feature branch
-2. GITHUB_LIST_COMMITS - Get recent commits for context
-3. GITHUB_COMPARE_BRANCHES - Check differences with main
-4. GITHUB_CREATE_PULL_REQUEST - Create PR with auto-generated description
+✅ Message posted to #team-standup:
+"Daily Standup Summary - January 20
+- John: Completed authentication module, starting on API tests
+- Sarah: Fixed memory leak issue, reviewing PR #44
+- Mike: Updated documentation, working on search optimization
+- Blockers: Need design review for dark mode feature"
 
-✅ PR #42 created: "Feature: Add user authentication" with 5 commits
-```
-
-#### 💬 Slack Integration - Context-Aware Messaging
-
-```
-User: Send our standup notes to the team channel
-Assistant: I'll format and send the standup notes to your team...
-
-Workflow executed:
-1. SLACK_LIST_CHANNELS - Find the appropriate team channel
-2. SLACK_GET_CHANNEL_MEMBERS - Verify team members
-3. SLACK_SEND_MESSAGE - Send formatted standup notes
-
-✅ Message sent to #team-standup with 12 member mentions
+The message was sent with mentions for all 12 team members.
 ```
 
 ### How It Works
@@ -138,11 +156,14 @@ graph TD
     B --> C{Select Toolkit}
     C --> D[COMPOSIO_SEARCH_TOOLS]
     D --> E[Discover Relevant Tools]
-    E --> F[Execute Tools in Sequence]
-    F --> G[Natural Language Response]
+    E --> F{Execution Mode}
+    F -->|Standard| G[Execute All Tools in One LLM Call]
+    F -->|Sequential| H[Execute Tools Step-by-Step]
+    G --> I[Natural Language Response]
+    H --> I
     
     style A fill:#e1f5fe
-    style G fill:#c8e6c9
+    style I fill:#c8e6c9
     style D fill:#fff3e0
 ```
 
@@ -180,9 +201,11 @@ sequenceDiagram
 ### Key Components
 
 - **ComposioService**: Manages Composio client and tool execution
-- **useComposioToolsAction**: Main action handler for tool execution
+- **useComposioToolsAction**: Standard action handler for single-call tool execution
+- **useComposioToolsSequentialAction**: Sequential action handler for step-by-step execution
 - **Smart Tool Search**: Semantic search for finding the right tools
 - **Vercel AI Integration**: Native support for Vercel AI SDK
+- **Token Optimization**: Intelligent truncation and context management
 
 ## 🔍 Debugging
 
