@@ -40,10 +40,11 @@ export function buildConversationContext(
     const recentExchanges = messagePairs.slice(-5);
     
     if (recentExchanges.length > 0) {
-      conversationContext = 'Recent conversation:\n' + 
+      conversationContext = `Recent conversation:\n${
         recentExchanges.map(pair => {
           return `User: ${pair.user.content.text}\nAgent: ${pair.agent.content.text}`;
-        }).join('\n\n');
+        }).join('\n\n')
+      }`;
     }
   }
   

@@ -108,6 +108,8 @@ export const useComposioToolsAction: Action = {
         },
       })) as ComposioSearchToolsResponse;
 
+      logger.debug('Search reasoning result:', searchResult.data.reasoning);
+
       // Check if the search was successful
       if (!searchResult?.successful || searchResult?.error) {
         logger.error(`COMPOSIO_SEARCH_TOOLS failed: ${searchResult?.error}`);
@@ -126,6 +128,8 @@ export const useComposioToolsAction: Action = {
 
         // Get all tool names from search results
         const toolNames = searchResult.data.results.map((result) => result.tool).filter(Boolean);
+
+        logger.info('Tool names:', toolNames);
 
         if (toolNames.length > 0) {
           tools = await composioClient.tools.get(userId, {

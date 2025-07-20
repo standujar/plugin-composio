@@ -100,8 +100,6 @@ export const useComposioToolsSequentialAction: Action = {
         return;
       }
 
-      logger.info(`Using COMPOSIO_SEARCH_TOOLS for toolkit: ${selectedToolkit} with use case: ${useCase}`);
-
       // Step 3: Use COMPOSIO_SEARCH_TOOLS to find the most relevant tools
       const searchResult = (await composioClient.tools.execute('COMPOSIO_SEARCH_TOOLS', {
         userId,
@@ -110,6 +108,8 @@ export const useComposioToolsSequentialAction: Action = {
           toolkits: [toolkit.toLowerCase()],
         },
       })) as ComposioSearchToolsResponse;
+
+      logger.debug('Search reasoning result:', searchResult.data.reasoning);
 
       // Check if the search was successful
       if (!searchResult?.successful || searchResult?.error) {
@@ -129,6 +129,8 @@ export const useComposioToolsSequentialAction: Action = {
 
         // Get all tool names from search results
         const toolNames = searchResult.data.results.map((result) => result.tool).filter(Boolean);
+
+        logger.info('Tool names:', toolNames);
 
         if (toolNames.length > 0) {
           tools = await composioClient.tools.get(userId, {
@@ -150,7 +152,6 @@ export const useComposioToolsSequentialAction: Action = {
       const totalSteps = toolsList.length;
       let previousContext = '';
       const allResults: string[] = [];
-      const extractedData: Record<string, any> = {}; // Store important extracted data
 
       for (let i = 0; i < toolsList.length; i++) {
         const [toolName, toolDefinition] = toolsList[i];
@@ -237,7 +238,7 @@ export const useComposioToolsSequentialAction: Action = {
             // Intermediate tools: truncate to avoid memory bloat
             const maxIntermediateSize = 500; // Reasonable size for intermediate results
             resultForSummary = toolResult.length > maxIntermediateSize
-              ? toolResult.substring(0, maxIntermediateSize) + '... [truncated]'
+              ? `${toolResult.substring(0, maxIntermediateSize)}... [truncated]`
               : toolResult;
           } else {
             // Last tool but no text response - this shouldn't happen with finalSummaryPrompt
@@ -272,9 +273,6 @@ export const useComposioToolsSequentialAction: Action = {
               // Use the LLM's text which should include extracted data
               sendSuccessCallback(callback, stepResponse.text);
             }
-            
-            // For single-tool sequences, we should NOT send the raw tool response
-            // It will be processed through finalSummaryPrompt for character consistency
           } else {
             logger.warn(`Empty response from tool ${toolName}`);
             allResults.push(`${toolName}: No result returned`);
@@ -291,7 +289,6 @@ export const useComposioToolsSequentialAction: Action = {
       }
 
       // Step 6: Final response has already been sent for the last tool
-      // Just log the completion
       logger.info('Sequential tool execution completed successfully', {
         toolsExecuted: toolsList.map(([name]) => name),
         totalSteps: totalSteps

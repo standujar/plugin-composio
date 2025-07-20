@@ -109,22 +109,15 @@ export const finalSummaryPrompt = ({
   agentResponseStyle?: string;
 }) => {
   const contextSection = conversationContext ? `${conversationContext}\n\n` : '';
-  const styleSection = agentResponseStyle ? `Agent response style: ${agentResponseStyle}\n\n` : '';
+  const styleSection = agentResponseStyle ? `${agentResponseStyle}\n\n` : '';
   
-  return `${styleSection}${contextSection}Original user request: "${userRequest}"
+  return `${styleSection}${contextSection}User asked: "${userRequest}"
 
-Previous tool results:
+Based on the previous tool executions results:
 ${allResults}
 
-Final step: Execute the last tool and provide complete results
+Consider the conversation context to understand any references to previous messages if it is provided and relevant to the task
+Include links if you find them relevant to the task
 
-Instructions:
-- Execute the provided tool to complete the workflow
-- Include ALL details from the final tool results (IDs, titles, descriptions, assignees, status)
-- Format the response clearly and structured
-- Be thorough but concise
-- This is the completion of the user's request
-- Provide the final answer based on all tool executions
-
-Execute the tool and generate your final response.`;
+Now complete the final tool execution and provide a natural, conversational response with all the important details from your findings.`;
 };

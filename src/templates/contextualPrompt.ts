@@ -23,7 +23,8 @@ IMPORTANT INSTRUCTIONS:
 2. Execute the tools in the logical order described in the task
 3. Use the exact values mentioned in the task description
 4. Consider the conversation context to understand any references to previous messages if it is provided and relevant to the task
-5. After executing all necessary tools, summarize what was accomplished in a way that is easy to understand and follow up on.
+5. Include links if you find them relevant to the task
+6. After executing all necessary tools, summarize what was accomplished in a way that is easy to understand and follow up on.
 
-Execute the workflow step by step and provide a clear summary of the results.`;
+Execute the workflow step by step and provide a natural, conversational response with all the important details from your findings.`;
 };
