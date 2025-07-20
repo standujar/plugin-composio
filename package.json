@@ -23,7 +23,8 @@
   "dependencies": {
     "@elizaos/core": "^1.2.9",
     "@composio/core": "next",
-    "@composio/vercel": "latest"
+    "@composio/vercel": "latest",
+    "truncate-json": "^3.0.0"
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",

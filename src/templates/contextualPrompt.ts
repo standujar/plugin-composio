@@ -7,13 +7,16 @@
 export const contextualPrompt = ({
   userRequest,
   conversationContext,
+  agentResponseStyle,
 }: {
   userRequest: string;
   conversationContext?: string;
+  agentResponseStyle?: string;
 }) => {
   const contextSection = conversationContext ? `${conversationContext}\n\n` : '';
+  const styleSection = agentResponseStyle ? `Agent response style: ${agentResponseStyle}\n\n` : '';
   
-  return `${contextSection}Task to complete: ${userRequest}
+  return `${styleSection}${contextSection}Task to complete: ${userRequest}
 
 IMPORTANT INSTRUCTIONS:
 1. You have been provided with specific tools to complete this task

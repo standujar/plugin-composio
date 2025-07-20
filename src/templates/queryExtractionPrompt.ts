@@ -32,7 +32,7 @@ IMPORTANT:
 Return a JSON object with:
 {
   "toolkit": "the_connected_app_name",
-  "use_case": "A detailed description of the complete workflow including all steps needed to fulfill the user's request. Be specific about what needs to be done, in what order, and what data is required."
+  "use_case": "A brief, direct description of what the user wants. Keep it simple and action-oriented. Maximum 2 sentences."
 }
 
 EXAMPLES:
@@ -53,6 +53,12 @@ User: "Send a message to the engineering channel"
 Response: {
   "toolkit": "slack",
   "use_case": "Send a message to the engineering channel in Slack. This requires listing available channels to find the engineering channel, then composing and sending the message to that specific channel."
+}
+
+User: "Get my last email"
+Response: {
+  "toolkit": "gmail",
+  "use_case": "Get the user's last email. This involves searching through the user's email inbox to find the most recent email."
 }
 
 Return ONLY the JSON object:`;
