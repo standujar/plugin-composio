@@ -174,7 +174,7 @@ export const useComposioToolsAction: Action = {
               userId,
               arguments: {
                 use_case: dependencyUseCase,
-                toolkits: connectedApps.map(app => app.toLowerCase()),
+                toolkits: [toolkit.toLowerCase()],
               },
             })) as ComposioSearchToolsResponse;
             
