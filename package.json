@@ -1,0 +1,88 @@
+{
+  "name": "@standujar/plugin-composio",
+  "description": "Composio plugin for elizaOS",
+  "version": "1.2.12",
+  "type": "module",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/standujar/plugin-composio.git"
+  },
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    }
+  },
+  "files": ["dist"],
+  "dependencies": {
+    "@elizaos/core": "^1.2.9",
+    "@composio/core": "next",
+    "@composio/vercel": "latest",
+    "truncate-json": "^3.0.0"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1.9.4",
+    "husky": "^9.1.7",
+    "prettier": "3.5.3",
+    "tsup": "8.4.0",
+    "typescript": "5.8.2"
+  },
+  "scripts": {
+    "start": "elizaos start",
+    "test-with-cli": "cd ../cli && bun run build && cd ../plugin-starter && elizaos test",
+    "dev": "elizaos dev",
+    "build": "tsup",
+    "lint": "biome lint --write .",
+    "test": "elizaos test",
+    "publish": "elizaos plugin publish",
+    "format": "biome format --write .",
+    "format:check": "prettier --check ./src",
+    "check": "biome check --write ."
+  },
+  "gitHead": "b165ad83e5f7a21bc1edbd83374ca087e3cd6b33",
+  "platform": "universal",
+  "agentConfig": {
+    "pluginType": "elizaos:plugin:1.0.0",
+    "pluginParameters": {
+      "COMPOSIO_API_KEY": {
+        "type": "string",
+        "description": "Composio API key for accessing tools and integrations"
+      },
+      "COMPOSIO_USER_ID": {
+        "type": "string",
+        "description": "Default user ID for Composio operations (optional)",
+        "default": "default"
+      },
+      "COMPOSIO_WORKFLOW_EXTRACTION_TEMPERATURE": {
+        "type": "number",
+        "description": "Temperature for LLM when understanding user intent and extracting workflow (0-1)",
+        "default": 0.7,
+        "optional": true
+      },
+      "COMPOSIO_TOOL_EXECUTION_TEMPERATURE": {
+        "type": "number",
+        "description": "Temperature for LLM when executing tools with precise parameters (0-1)",
+        "default": 0.1,
+        "optional": true
+      },
+      "COMPOSIO_DEFAULT_USER_ID": {
+        "type": "string",
+        "description": "Default user ID if not specified in settings",
+        "default": "default",
+        "optional": true
+      },
+      "COMPOSIO_EXECUTION_MODE": {
+        "type": "string",
+        "description": "Execution mode for tool execution",
+        "default": "sequential",
+        "optional": true
+      }
+    }
+  }
+}
