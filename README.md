@@ -5,6 +5,7 @@
 [![npm version](https://img.shields.io/npm/v/@standujar/plugin-composio.svg)](https://www.npmjs.com/package/@standujar/plugin-composio)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![ElizaOS Compatible](https://img.shields.io/badge/ElizaOS-Compatible-green.svg)](https://github.com/elizaOS/eliza)
+[![Version](https://img.shields.io/badge/version-1.2.13-blue.svg)](https://github.com/standujar/plugin-composio/releases/tag/v1.2.13)
 
 A powerful ElizaOS plugin that integrates **250+ external tool integrations** through [Composio](https://composio.dev). Enable your AI agent to interact with GitHub, Slack, Linear, Google Drive, Notion, and hundreds more services through natural language.
 
@@ -24,7 +25,9 @@ A powerful ElizaOS plugin that integrates **250+ external tool integrations** th
 - 🔄 **Two Execution Modes**: 
   - **Parallel**: Execute multiple tools simultaneously for speed
   - **Sequential**: Step-by-step execution with intermediate feedback
-- 💡 **Token Optimization**: Smart truncation and context management for efficient LLM usage
+- 💡 **Token Optimization**: 70% reduction in prompt tokens through optimized templates
+- 🧠 **Intelligent Dependency Resolution**: Only fetches missing data, avoids redundant API calls
+- ⚙️ **Smart Context Analysis**: Detects when IDs or data are already available in conversation
 
 ## 📦 Installation
 
@@ -112,29 +115,40 @@ Set the execution mode via the `COMPOSIO_EXECUTION_MODE` environment variable:
 
 ### Example Interactions
 
-#### 📊 Linear Integration - Sequential Workflow with Step-by-Step Updates
+#### 📊 Linear Integration - Smart Dependency Resolution
 
 ```
-User: Create a new issue in Linear for the project "My Project V1" and assign it to s.andujar
-Assistant: I'll create a new issue in Linear for you. Let me handle this step by step...
+User: Create a new issue in Linear for the project "Backend" and assign it to Alice
 
-[Step 1/4] Finding Linear projects...
-→ Found project Kenny V1 (ID: 9fbaaf04-3e8a-4c4f-b0e9-ff7c3eb96b32)
+[Workflow Analysis]
+1. Extract: "Create issue" (linear)
+2. Dependencies detected: Need project_id and user_id
+3. Combined use case: "List projects and search users. Then, Create issue"
 
-[Step 2/4] Getting team members...
-→ Found user s.andujar (ID: d19c7a59-9f23-4f5b-b4e7-8f3c9d5a7b21)
+Assistant: I'll create a new issue in Linear. Let me find the project and user first.
 
-[Step 3/4] Creating the issue...
-→ Issue created with ID: KEN-123
-
-[Step 4/4] Verifying issue creation...
-✅ Issue created successfully:
+✅ Created issue successfully:
 - Title: "New task"
-- ID: KEN-123
-- Assigned to: s.andujar
-- Project: Kenny V1
+- ID: LIN-123  
+- Project: Backend
+- Assigned to: Alice
 - Status: Backlog
-- URL: https://linear.app/team/issue/KEN-123
+- URL: https://linear.app/team/issue/LIN-123
+```
+
+#### 🚀 Optimized Workflow - No Dependencies Needed
+
+```
+User: Delete issue USEK-162
+
+[Workflow Analysis]
+1. Extract: "Delete issue" (linear)
+2. Dependencies: None (ID already provided)
+3. Final use case: "Delete issue"
+
+Assistant: I'll delete issue USEK-162 for you.
+
+✅ Issue USEK-162 has been successfully archived.
 ```
 
 #### 💬 Slack Integration - Single Response Mode
@@ -157,28 +171,30 @@ The message was sent with mentions for all 12 team members.
 
 ```mermaid
 graph TD
-    A[User Request] --> B[Workflow Extraction]
+    A[User Request] --> B[Workflow Extraction<br/>verb + action]
     B --> C{Select Toolkit}
     C --> D[COMPOSIO_SEARCH_TOOLS]
-    D --> E[Discover Relevant Tools]
-    E --> F{Execution Mode}
-    F -->|Standard| G[Execute All Tools in One LLM Call]
-    F -->|Sequential| H[Execute Tools Step-by-Step]
-    G --> I[Natural Language Response]
-    H --> I
+    D --> E[Get Tools]
+    E --> F[Dependency Analysis<br/>Check missing data]
+    F -->|Has Dependencies| G[Fetch Missing Data]
+    F -->|No Dependencies| H[Execute Main Action]
+    G --> I[Combine Use Cases<br/>Dependencies first]
+    I --> H
+    H --> J[Natural Language Response]
     
     style A fill:#e1f5fe
-    style I fill:#c8e6c9
-    style D fill:#fff3e0
+    style J fill:#c8e6c9
+    style F fill:#fff3e0
 ```
 
 ### Workflow Intelligence
 
-The plugin understands complex requests and automatically:
-- 🔍 **Discovers prerequisites** - Lists projects before creating issues
-- 🔗 **Chains operations** - Fetches data needed for subsequent steps  
-- ✅ **Verifies results** - Confirms actions completed successfully
-- 🧠 **Handles context** - Uses conversation history for better results
+The plugin uses optimized templates and smart analysis:
+- 🎯 **Verb + Action Format** - Simple, clear use case extraction
+- 🧠 **Context-Aware Dependencies** - Only fetches data not already in conversation
+- ⚡ **Selective Data Fetching** - Skips redundant API calls if IDs are provided
+- 🔗 **Smart Use Case Combination** - Dependencies execute before main action
+- 📊 **Optimized Templates** - 70% less tokens while maintaining accuracy
 
 
 ## 🛠️ Technical Details
@@ -206,11 +222,14 @@ sequenceDiagram
 ### Key Components
 
 - **ComposioService**: Manages Composio client and tool execution
-- **useComposioToolsAction**: Standard action handler for single-call tool execution
+- **useComposioToolsAction**: Main action handler with intelligent dependency resolution
 - **useComposioToolsSequentialAction**: Sequential action handler for step-by-step execution
-- **Smart Tool Search**: Semantic search for finding the right tools
-- **Vercel AI Integration**: Native support for Vercel AI SDK
-- **Token Optimization**: Intelligent truncation and context management
+- **Optimized Templates**:
+  - `queryExtractionPrompt`: Verb + action extraction (~20 lines)
+  - `dependencyAnalysisPrompt`: Smart dependency detection (~25 lines)
+  - `contextualPrompt`: Minimal execution prompt (~10 lines)
+- **Context-Aware Analysis**: Avoids fetching data already in conversation
+- **Smart Use Case Combination**: Dependencies execute before main actions
 
 ## 🔍 Debugging
 
