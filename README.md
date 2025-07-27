@@ -287,11 +287,21 @@ This plugin is licensed under the MIT License. See [LICENSE](LICENSE) file for d
 - **Issues**: [GitHub Issues](https://github.com/standujar/plugin-composio/issues)
 - **Discord**: Join the ElizaOS Discord community
 
-## 🚀 Roadmap
+## 🚀 What's New in v1.2.13
+
+- ⚡ **70% Token Reduction**: Optimized templates from ~100 to ~20 lines
+- 🧠 **Smart Context Analysis**: Avoids redundant API calls when data exists
+- 🎯 **Selective Dependency Resolution**: Only fetches truly missing data
+- 📝 **Verb + Action Format**: Cleaner, more predictable use cases
+- 🔄 **Improved Use Case Combination**: Dependencies execute before main action
+
+## 📈 Roadmap
 
 - [ ] Connect new Apps from Action
 - [ ] List Connected Apps from Action
 - [ ] Composio Trigger creation from Action
+- [ ] Multi-step workflow persistence
+- [ ] Parallel dependency resolution
 
 ---
 
