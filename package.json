@@ -22,7 +22,7 @@
   "files": ["dist"],
   "dependencies": {
     "@elizaos/core": "^1.2.9",
-    "@composio/core": "next",
+    "@composio/core": "0.1.38",
     "@composio/vercel": "latest",
     "truncate-json": "^3.0.0"
   },
