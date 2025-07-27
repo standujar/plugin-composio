@@ -240,10 +240,11 @@ LOG_LEVEL=debug bun start
 ```
 
 Common debug points:
-- Workflow extraction from user request
+- Workflow extraction (verb + action format)
+- Dependency analysis (what data is missing vs available)
+- Use case combination (dependencies + main action)
 - Tool search results from COMPOSIO_SEARCH_TOOLS
-- Tool execution parameters
-- Error handling for unconnected apps
+- Context analysis for avoiding redundant fetches
 
 ## 🤝 Contributing
 
