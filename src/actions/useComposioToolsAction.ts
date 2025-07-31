@@ -155,7 +155,7 @@ export const useComposioToolsAction: Action = {
           retrievedTools: tools,
           toolkit: toolkit || 'unknown',
         }),
-        temperature: COMPOSIO_DEFAULTS.WORKFLOW_EXTRACTION_TEMPERATURE,
+        temperature: COMPOSIO_DEFAULTS.DEPENDENCY_ANALYSIS_TEMPERATURE,
       });
 
       // Check if we need to fetch more tools
