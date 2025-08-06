@@ -1,7 +1,7 @@
 {
   "name": "@standujar/plugin-composio",
   "description": "Composio plugin for elizaOS",
-  "version": "1.2.15",
+  "version": "1.2.16",
   "type": "module",
   "main": "dist/index.js",
   "module": "dist/index.js",
