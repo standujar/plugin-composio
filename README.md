@@ -22,6 +22,7 @@ A powerful ElizaOS plugin that integrates **250+ external tool integrations** th
 - 📝 **Vercel AI SDK Integration**: Seamless integration with ElizaOS's function calling
 - ⚡ **Smart Workflow Generation**: Automatically creates multi-step workflows from user requests
 - 🎯 **Context-Aware**: Understands conversation context for better tool selection
+- 📊 **Results Provider**: Stores execution results for reuse in subsequent actions
 - 🔄 **Two Execution Modes**: 
   - **Parallel**: Execute multiple tools simultaneously for speed
   - **Sequential**: Step-by-step execution with intermediate feedback
@@ -205,23 +206,32 @@ The plugin uses optimized templates and smart analysis:
 sequenceDiagram
     participant U as User
     participant P as Plugin
+    participant R as Results Provider
     participant C as Composio API
     participant T as Tool (GitHub/Slack/etc)
     
     U->>P: Natural language request
     P->>P: Extract workflow & toolkit
+    P->>R: Check previous executions
+    R-->>P: Related execution results
     P->>C: COMPOSIO_SEARCH_TOOLS
     C-->>P: Relevant tools list
     P->>C: Execute tools.get()
     C-->>P: Tool definitions
     P->>T: Execute tool with params
     T-->>P: Results
+    P->>R: Store execution results
     P->>U: Natural response
 ```
 
 ### Key Components
 
 - **ComposioService**: Manages Composio client and tool execution
+- **ComposioResultsProvider**: Persistent storage for tool execution results
+  - Stores up to 5 executions per toolkit
+  - Enables context-aware subsequent actions
+  - Automatically filters successful results
+  - Provides execution history for dependency resolution
 - **useComposioToolsAction**: Main action handler with intelligent dependency resolution
 - **useComposioToolsSequentialAction**: Sequential action handler for step-by-step execution
 - **Optimized Templates**:
@@ -294,6 +304,7 @@ This plugin is licensed under the MIT License. See [LICENSE](LICENSE) file for d
 - 🎯 **Selective Dependency Resolution**: Only fetches truly missing data
 - 📝 **Verb + Action Format**: Cleaner, more predictable use cases
 - 🔄 **Improved Use Case Combination**: Dependencies execute before main action
+- 📊 **Results Provider**: New provider system for persistent execution history
 
 ## 📈 Roadmap
 
