@@ -2,6 +2,7 @@ import type { IAgentRuntime, Plugin } from '@elizaos/core';
 import { logger } from '@elizaos/core';
 import { useComposioToolsAction, useComposioToolsSequentialAction } from './actions';
 import { getComposioExecutionMode } from './config/env';
+import { composioResultsProvider } from './providers/ComposioResultsProvider';
 import { ComposioService } from './services';
 
 /**
@@ -25,7 +26,8 @@ export const composioPlugin: Plugin = {
     getComposioExecutionMode() === 'sequential' 
       ? useComposioToolsSequentialAction 
       : useComposioToolsAction
-  ]
+  ],
+  providers: [composioResultsProvider]
 };
 
 export default composioPlugin;

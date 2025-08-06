@@ -7,6 +7,7 @@ import {
   ModelType,
   type State,
 } from '@elizaos/core';
+import { ComposioResultsProvider } from '../providers/ComposioResultsProvider';
 import { COMPOSIO_DEFAULTS } from '../config/defaults';
 import { composioToolsExamples } from '../examples';
 import type { ComposioService } from '../services';
@@ -67,7 +68,7 @@ export const useComposioToolsAction: Action = {
       }
 
       // Build conversation context and get agent style
-      const conversationContext = buildConversationContext(state, message, runtime);
+      let conversationContext = buildConversationContext(state, message, runtime);
       const agentResponseStyle = getAgentResponseStyle(state);
 
       // Step 2: Extract workflow description from user request
@@ -98,6 +99,18 @@ export const useComposioToolsAction: Action = {
       }
 
       logger.info(`Using COMPOSIO_SEARCH_TOOLS for toolkit: ${selectedToolkit} with use case: ${useCase}`);
+
+      // Get the provider and retrieve previous executions for this toolkit
+      const resultsProvider = runtime.providers.find(p => p.name === 'COMPOSIO_RESULTS') as ComposioResultsProvider;
+      const previousExecutions = resultsProvider?.getToolkitExecutions(selectedToolkit) || [];
+      
+      logger.info(`[ComposioResults] Found ${previousExecutions.length} previous executions for toolkit: ${selectedToolkit}`);
+      if (previousExecutions.length > 0) {
+        logger.info('[ComposioResults] Previous executions:', JSON.stringify(previousExecutions, null, 2));
+      }
+      
+      // Note: previousExecutions are passed separately to dependencyAnalysisPrompt
+      // No need to enrich conversationContext here
 
       // Step 3: Use COMPOSIO_SEARCH_TOOLS to find the most relevant tools
       const searchResult = (await composioClient.tools.execute('COMPOSIO_SEARCH_TOOLS', {
@@ -153,13 +166,22 @@ export const useComposioToolsAction: Action = {
           userRequest: message.content.text,
           conversationContext,
           retrievedTools: tools,
-          toolkit: toolkit || 'unknown',
+          previousExecutions: previousExecutions,
         }),
         temperature: COMPOSIO_DEFAULTS.DEPENDENCY_ANALYSIS_TEMPERATURE,
       });
 
       // Check if we need to fetch more tools
-      const dependencyResult = dependencyResponse as { hasDependencies?: boolean; useCase?: string };
+      const dependencyResult = dependencyResponse as { 
+        hasDependencies?: boolean; 
+        useCase?: string;
+        relevantExecutions?: Array<{
+          useCase: string;
+          results: Array<{ tool: string; result: any }>;
+        }>;
+      };
+      
+      logger.info('[DependencyAnalysis] Result:', JSON.stringify(dependencyResult, null, 2));
       
       if (dependencyResult?.hasDependencies) {
         const dependencyUseCase = dependencyResult.useCase;
@@ -214,10 +236,19 @@ export const useComposioToolsAction: Action = {
         logger.info(`Combined use case: ${finalUseCase}`);
       }
 
+      // Use only relevant executions for the final prompt
+      const relevantExecutions = dependencyResult?.relevantExecutions || [];
+      
+      logger.info(`[FilteredExecutions] Using ${relevantExecutions.length} relevant executions out of ${previousExecutions.length} total`);
+      if (relevantExecutions.length > 0) {
+        logger.info('[FilteredExecutions] Relevant executions:', JSON.stringify(relevantExecutions, null, 2));
+      }
+      
       const prompt = contextualPrompt({
         userRequest: finalUseCase,
         conversationContext,
         agentResponseStyle: agentResponseStyle,
+        previousExecutions: relevantExecutions,
       });
 
       // Log the final prompt
@@ -239,6 +270,25 @@ export const useComposioToolsAction: Action = {
       } else {
         // Fallback to extractResponseText for other cases
         responseText = extractResponseText(response);
+      }
+      
+      // Store the execution results if we have tool results
+      if (isModelToolResponse(response) && response.toolResults && resultsProvider && selectedToolkit) {
+        const allResults = response.toolResults
+          .map((toolResult, index) => {
+            // Match with toolCalls to get the tool name
+            const toolCall = response.toolCalls?.[index];
+            return {
+              tool: toolCall?.toolName || `tool_${index}`,
+              result: toolResult.result
+            };
+          });
+        
+        if (allResults.length > 0) {
+          resultsProvider.storeExecution(selectedToolkit, finalUseCase, allResults);
+          logger.info(`[StoreResults] Stored ${allResults.length} tool execution results for toolkit: ${selectedToolkit}`);
+          logger.info('[StoreResults] Stored results:', JSON.stringify(allResults, null, 2));
+        }
       }
       
       // Check if we have a valid response
