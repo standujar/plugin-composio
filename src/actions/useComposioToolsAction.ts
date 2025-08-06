@@ -176,6 +176,7 @@ export const useComposioToolsAction: Action = {
         hasDependencies?: boolean; 
         useCase?: string;
         relevantExecutions?: Array<{
+          timestamp: number;
           useCase: string;
           results: Array<{ tool: string; result: any }>;
         }>;
