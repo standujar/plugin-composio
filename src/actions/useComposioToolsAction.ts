@@ -140,7 +140,7 @@ export const useComposioToolsAction: Action = {
       if (searchResult?.data?.results && Array.isArray(searchResult.data.results)) {
 
         // Get all tool names from search results
-        const toolNames = searchResult.data.results.map((result) => result.tool).filter(Boolean);
+        const toolNames = searchResult.data.results.map((result) => result.tool_slug || result.tool).filter(Boolean);
 
         logger.info('Tool names:', toolNames);
 
@@ -204,7 +204,7 @@ export const useComposioToolsAction: Action = {
             // Process search results
             if (dependencySearchResult?.data?.results && Array.isArray(dependencySearchResult.data.results)) {
               // Get tool names from search results
-              const toolNames = dependencySearchResult.data.results.map((result) => result.tool).filter(Boolean);
+              const toolNames = dependencySearchResult.data.results.map((result) => result.tool_slug || result.tool).filter(Boolean);
               
               if (toolNames.length > 0) {
                 // Get the actual tools from Composio

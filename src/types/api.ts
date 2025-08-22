@@ -20,7 +20,8 @@ export interface ComposioSearchToolsResponse {
       description: string;
       input_schema: Record<string, unknown>;
       order: number;
-      tool: string;
+      tool?: string;
+      tool_slug?: string;
       toolkit: string;
     }>;
   };
