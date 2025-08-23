@@ -1,7 +1,7 @@
 {
   "name": "@standujar/plugin-composio",
   "description": "Composio plugin for elizaOS",
-  "version": "1.2.17",
+  "version": "1.2.19",
   "type": "module",
   "main": "dist/index.js",
   "module": "dist/index.js",
@@ -21,9 +21,9 @@
   },
   "files": ["dist"],
   "dependencies": {
+    "@composio/core": "0.1.44",
+    "@composio/vercel": "0.1.44",
     "@elizaos/core": "^1.2.9",
-    "@composio/core": "0.1.38",
-    "@composio/vercel": "latest",
     "truncate-json": "^3.0.0"
   },
   "devDependencies": {

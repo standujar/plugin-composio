@@ -68,7 +68,7 @@ export const useComposioToolsAction: Action = {
       }
 
       // Build conversation context and get agent style
-      let conversationContext = buildConversationContext(state, message, runtime);
+      const conversationContext = buildConversationContext(state, message, runtime);
       const agentResponseStyle = getAgentResponseStyle(state);
 
       // Step 2: Extract workflow description from user request
@@ -85,7 +85,7 @@ export const useComposioToolsAction: Action = {
       const { toolkit, use_case: useCase } = workflowResponse;
 
       if (!toolkit || !useCase) {
-        logger.info('Invalid workflow response format:', workflowResponse);
+        logger.info('Invalid workflow response format:', JSON.stringify(workflowResponse));
         return;
       }
 
@@ -142,7 +142,7 @@ export const useComposioToolsAction: Action = {
         // Get all tool names from search results
         const toolNames = searchResult.data.results.map((result) => result.tool_slug || result.tool).filter(Boolean);
 
-        logger.info('Tool names:', toolNames);
+        logger.info('Tool names:', JSON.stringify(toolNames));
 
         if (toolNames.length > 0) {
           tools = await composioClient.tools.get(userId, {
@@ -157,78 +157,111 @@ export const useComposioToolsAction: Action = {
         return;
       }
 
-      // Step 4: Check for missing dependencies (single pass)
+      // Step 4: Check for missing dependencies (iterative analysis)
       logger.info('Checking for missing dependencies in retrieved tools');
       
-      // Analyze dependencies for current tools
-      const dependencyResponse = await runtime.useModel(ModelType.OBJECT_LARGE, {
-        prompt: dependencyAnalysisPrompt({
-          userRequest: message.content.text,
-          conversationContext,
-          retrievedTools: tools,
-          previousExecutions: previousExecutions,
-        }),
-        temperature: COMPOSIO_DEFAULTS.DEPENDENCY_ANALYSIS_TEMPERATURE,
-      });
+      let hasNewDependencies = true;
+      let dependencyIteration = 0;
+      const MAX_DEPENDENCY_ITERATIONS = 5; // Prevent infinite loops
+      let finalDependencyResult: any = null;
+      
+      while (hasNewDependencies && dependencyIteration < MAX_DEPENDENCY_ITERATIONS) {
+        dependencyIteration++;
+        logger.info(`[DependencyAnalysis] Starting iteration ${dependencyIteration}`);
+        
+        // Analyze dependencies for current tools
+        const dependencyResponse = await runtime.useModel(ModelType.OBJECT_LARGE, {
+          prompt: dependencyAnalysisPrompt({
+            userRequest: message.content.text,
+            conversationContext,
+            retrievedTools: tools,
+            previousExecutions: previousExecutions,
+          }),
+          temperature: COMPOSIO_DEFAULTS.DEPENDENCY_ANALYSIS_TEMPERATURE,
+        });
 
-      // Check if we need to fetch more tools
-      const dependencyResult = dependencyResponse as { 
-        hasDependencies?: boolean; 
-        useCase?: string;
-        relevantExecutions?: Array<{
-          timestamp: number;
-          useCase: string;
-          results: Array<{ tool: string; result: any }>;
-        }>;
-      };
-      
-      logger.info('[DependencyAnalysis] Result:', JSON.stringify(dependencyResult, null, 2));
-      
-      if (dependencyResult?.hasDependencies) {
-        const dependencyUseCase = dependencyResult.useCase;
-        if (!dependencyUseCase) {
-          logger.info('Dependencies detected but no use case provided, proceeding with execution');
-        } else {
-          logger.info(`Found missing dependencies, fetching tools for: ${dependencyUseCase}`);
-          
-          // Fetch tools for the missing dependencies
-          try {
-            const dependencySearchResult = (await composioClient.tools.execute('COMPOSIO_SEARCH_TOOLS', {
-              userId,
-              arguments: {
-                use_case: dependencyUseCase,
-                toolkits: [toolkit.toLowerCase()],
-              },
-            })) as ComposioSearchToolsResponse;
+        // Check if we need to fetch more tools
+        const dependencyResult = dependencyResponse as { 
+          hasDependencies?: boolean; 
+          useCase?: string;
+          relevantExecutions?: Array<{
+            timestamp: number;
+            useCase: string;
+            results: Array<{ tool: string; result: any }>;
+          }>;
+        };
+        
+        logger.info(`[DependencyAnalysis] Iteration ${dependencyIteration} Result:`, JSON.stringify(dependencyResult, null, 2));
+        finalDependencyResult = dependencyResult; // Keep the last result for later use
+        
+        if (dependencyResult?.hasDependencies) {
+          const dependencyUseCase = dependencyResult.useCase;
+          if (!dependencyUseCase) {
+            logger.info('Dependencies detected but no use case provided, stopping dependency analysis');
+            hasNewDependencies = false;
+          } else {
+            logger.info(`Found missing dependencies, fetching tools for: ${dependencyUseCase}`);
             
-            // Process search results
-            if (dependencySearchResult?.data?.results && Array.isArray(dependencySearchResult.data.results)) {
-              // Get tool names from search results
-              const toolNames = dependencySearchResult.data.results.map((result) => result.tool_slug || result.tool).filter(Boolean);
+            // Track tools before adding new ones
+            const toolCountBefore = Object.keys(tools).length;
+            
+            // Fetch tools for the missing dependencies
+            try {
+              const dependencySearchResult = (await composioClient.tools.execute('COMPOSIO_SEARCH_TOOLS', {
+                userId,
+                arguments: {
+                  use_case: dependencyUseCase,
+                  toolkits: [toolkit.toLowerCase()],
+                },
+              })) as ComposioSearchToolsResponse;
               
-              if (toolNames.length > 0) {
-                // Get the actual tools from Composio
-                const dependencyTools = await composioClient.tools.get(userId, {
-                  tools: toolNames,
-                });
+              // Process search results
+              if (dependencySearchResult?.data?.results && Array.isArray(dependencySearchResult.data.results)) {
+                // Get tool names from search results
+                const toolNames = dependencySearchResult.data.results.map((result) => result.tool_slug || result.tool).filter(Boolean);
                 
-                // Add new tools to our collection
-                for (const [toolId, toolData] of Object.entries(dependencyTools)) {
-                  if (!tools[toolId]) { // Only add if we don't already have this tool
-                    tools[toolId] = toolData;
-                    logger.info(`Found dependency tool: ${toolId}`);
+                if (toolNames.length > 0) {
+                  // Get the actual tools from Composio
+                  const dependencyTools = await composioClient.tools.get(userId, {
+                    tools: toolNames,
+                  });
+                  
+                  // Add new tools to our collection
+                  for (const [toolId, toolData] of Object.entries(dependencyTools)) {
+                    if (!tools[toolId]) { // Only add if we don't already have this tool
+                      tools[toolId] = toolData;
+                      logger.info(`Found dependency tool: ${toolId}`);
+                    }
                   }
                 }
               }
+              
+              // Check if we actually added new tools
+              const toolCountAfter = Object.keys(tools).length;
+              if (toolCountAfter === toolCountBefore) {
+                logger.info('No new tools were added, stopping dependency analysis');
+                hasNewDependencies = false;
+              }
+              
+            } catch (error) {
+              logger.info(`Error fetching dependency tools: ${error}`);
+              hasNewDependencies = false;
             }
-          } catch (error) {
-            logger.info(`Error fetching dependency tools: ${error}`);
-            // Continue with what we have
           }
+        } else {
+          logger.info(`No missing dependencies found in iteration ${dependencyIteration}, proceeding with execution`);
+          hasNewDependencies = false;
         }
-      } else {
-        logger.info('No missing dependencies found, proceeding with execution');
       }
+      
+      if (dependencyIteration >= MAX_DEPENDENCY_ITERATIONS) {
+        logger.info(`Reached maximum dependency iterations (${MAX_DEPENDENCY_ITERATIONS}), proceeding with current tools`);
+      }
+      
+      logger.info(`Dependency analysis completed after ${dependencyIteration} iterations with ${Object.keys(tools).length} total tools`);
+      
+      // Use the last dependency result for the rest of the logic
+      const dependencyResult = finalDependencyResult || { hasDependencies: false, useCase: '', relevantExecutions: [] };
 
       // Combine the dependency use case BEFORE the original use case
       let finalUseCase = useCase;
