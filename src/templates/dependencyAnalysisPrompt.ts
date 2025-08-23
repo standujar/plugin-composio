@@ -37,7 +37,7 @@ ${JSON.stringify(retrievedTools, null, 2)}
 ## DEPENDENCY ANALYSIS LOGIC
 
 1. **Identify Required Parameters**
-   - Look for parameters ending with: _id, _ref, _key, _identifier
+   - Look for parameters ending with: _id, _ref, _key, _identifier, Id, Ref, Key, Identifier
    - Check if they are marked as required in the tool definition
    - Check if the user mentions them explicitly (even if optional)
 
@@ -48,7 +48,12 @@ ${JSON.stringify(retrievedTools, null, 2)}
    3. Default values in the tool definition
    4. The conversation context (LOWEST PRIORITY - may be outdated or imprecise)
 
-3. **Determine Missing Dependencies**
+3. **Analyze Tool Parameters Recursively**
+   For each tool in CURRENT TOOLS, examine its required parameters:
+   - Check if ALL required parameters can be satisfied
+   - If a tool needs data that isn't available, identify what tools could provide that data
+
+4. **Determine Missing Dependencies**
    - If a required parameter is NOT available from any source → Add to dependencies
    - If an optional parameter is mentioned by user but NOT available → Add to dependencies
    - If data exists in previous executions → DO NOT add to dependencies (avoid redundant API calls)

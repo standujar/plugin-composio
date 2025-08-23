@@ -1,7 +1,11 @@
 import type { IAgentRuntime, Plugin } from '@elizaos/core';
 import { logger } from '@elizaos/core';
-import { useComposioToolsAction, useComposioToolsSequentialAction } from './actions';
-import { getComposioExecutionMode } from './config/env';
+import { 
+  useComposioToolsAction, 
+  listConnectedAppsAction, 
+  addComposioToolkitAction, 
+  removeComposioToolkitAction 
+} from './actions';
 import { composioResultsProvider } from './providers/ComposioResultsProvider';
 import { ComposioService } from './services';
 
@@ -18,14 +22,14 @@ export const composioPlugin: Plugin = {
    * @param _runtime - ElizaOS agent runtime
    */
   async init(_config: Record<string, string>, _runtime: IAgentRuntime) {
-    const mode = getComposioExecutionMode();
-    logger.info(`Composio plugin initialized in ${mode} mode`);
+    logger.info('Composio plugin initialized');
   },
   services: [ComposioService],
   actions: [
-    getComposioExecutionMode() === 'sequential' 
-      ? useComposioToolsSequentialAction 
-      : useComposioToolsAction
+    useComposioToolsAction,
+    listConnectedAppsAction,
+    addComposioToolkitAction,
+    removeComposioToolkitAction
   ],
   providers: [composioResultsProvider]
 };

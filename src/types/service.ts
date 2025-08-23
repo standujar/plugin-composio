@@ -12,10 +12,15 @@ export interface ComposioServiceConfig {
    */
   apiKey: string;
   /**
-   * Optional user ID for Composio operations
+   * User ID for Composio operations (required)
    * @default 'default'
    */
-  userId?: string;
+  userId: string;
+  /**
+   * Whether multi-user mode is enabled
+   * @default false
+   */
+  multiUserMode?: boolean;
 }
 
 /**

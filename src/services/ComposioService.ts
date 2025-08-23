@@ -2,6 +2,7 @@ import { Composio } from '@composio/core';
 import { VercelProvider } from '@composio/vercel';
 import { type IAgentRuntime, logger, Service } from '@elizaos/core';
 import { COMPOSIO_SERVICE_NAME, type ComposioServiceConfig, type ComposioToolResult } from '../types';
+import { COMPOSIO_DEFAULTS } from '../config/defaults';
 
 /**
  * Service class for Composio integration
@@ -35,9 +36,15 @@ export class ComposioService extends Service {
       return;
     }
 
+    // Check first in runtime settings, then fallback to env/default
+    const multiUserModeSetting = runtime.getSetting('COMPOSIO_MULTI_USER_MODE');
+    const multiUserMode = multiUserModeSetting ?? COMPOSIO_DEFAULTS.MULTI_USER_MODE;
+    const globalUserId = (runtime.getSetting('COMPOSIO_USER_ID') as string) || 'default';
+
     this.serviceConfig = {
       apiKey,
-      userId: (runtime.getSetting('COMPOSIO_USER_ID') as string) || 'default',
+      userId: globalUserId,
+      multiUserMode,
     };
 
     try {
@@ -46,7 +53,7 @@ export class ComposioService extends Service {
         provider: new VercelProvider() as any,
       });
 
-      logger.info('Composio service initialized successfully');
+      logger.info(`Composio service initialized successfully (multi-user mode: ${multiUserMode})`);
     } catch (error) {
       logger.error('Failed to initialize Composio service:', error);
       throw error;
@@ -55,20 +62,21 @@ export class ComposioService extends Service {
 
 
   /**
-   * Get connected apps for the current user
+   * Get connected apps for a user
+   * @param userId - Optional user ID (used in multi-user mode)
    * @returns Array of connected app names (toolkit slugs)
    */
-  async getConnectedApps(): Promise<string[]> {
+  async getConnectedApps(userId?: string): Promise<string[]> {
     if (!this.composio) {
       return [];
     }
 
     try {
-      const userId = this.serviceConfig?.userId || 'default';
+      const effectiveUserId = this.getEffectiveUserId(userId);
       
       // Get user's connected apps (only ACTIVE ones)
       const connectedAppsResponse = await this.composio.connectedAccounts.list({
-        userIds: [userId],
+        userIds: [effectiveUserId],
         statuses: ['ACTIVE'],
       });
 
@@ -76,7 +84,7 @@ export class ComposioService extends Service {
       const connectedApps = connectedAppsResponse?.items || [];
 
       if (!connectedApps || connectedApps.length === 0) {
-        logger.debug(`No active connected apps found for user ${userId}`);
+        logger.debug(`No active connected apps found for user ${effectiveUserId}`);
         return [];
       }
 
@@ -85,7 +93,7 @@ export class ComposioService extends Service {
         .map((account) => account?.toolkit?.slug)
         .filter((slug): slug is string => slug !== null && slug !== undefined && typeof slug === 'string');
       
-      logger.debug(`Found ${toolkitSlugs.length} connected apps: ${toolkitSlugs.join(', ')}`);
+      logger.debug(`Found ${toolkitSlugs.length} connected apps for user ${effectiveUserId}: ${toolkitSlugs.join(', ')}`);
       return toolkitSlugs;
     } catch (error) {
       logger.error('Failed to load connected apps:', error);
@@ -111,7 +119,7 @@ export class ComposioService extends Service {
 
     try {
       const result = await this.composio.tools.execute(toolName, {
-        userId: userId || this.serviceConfig?.userId || 'default',
+        userId: this.getEffectiveUserId(userId),
         arguments: parameters,
       });
 
@@ -150,6 +158,44 @@ export class ComposioService extends Service {
    */
   getServiceConfig(): ComposioServiceConfig | null {
     return this.serviceConfig;
+  }
+
+  /**
+   * Get the effective user ID based on mode and provided userId
+   * @param userId - Optional user ID from message
+   * @returns Effective user ID to use for API calls
+   */
+  private getEffectiveUserId(userId?: string): string {
+    if (!this.serviceConfig) {
+      return 'default';
+    }
+
+    // In single user mode, always use the configured userId
+    if (!this.serviceConfig.multiUserMode) {
+      return this.serviceConfig.userId;
+    }
+
+    // In multi-user mode, use provided userId or fall back to configured one
+    return userId || this.serviceConfig.userId;
+  }
+
+  /**
+   * Check if multi-user mode is enabled
+   * @returns True if multi-user mode is enabled
+   */
+  isMultiUserMode(): boolean {
+    return this.serviceConfig?.multiUserMode ?? false;
+  }
+
+  /**
+   * Check if a toolkit is already connected for a user
+   * @param toolkitSlug - The toolkit slug to check
+   * @param userId - Optional user ID (used in multi-user mode)
+   * @returns True if the toolkit is already connected
+   */
+  async isToolkitConnected(toolkitSlug: string, userId?: string): Promise<boolean> {
+    const connectedApps = await this.getConnectedApps(userId);
+    return connectedApps.includes(toolkitSlug.toLowerCase());
   }
 
   /**

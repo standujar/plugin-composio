@@ -4,7 +4,6 @@ import { COMPOSIO_DEFAULTS } from './defaults';
 
 // Re-export configuration utilities
 export * from './defaults';
-export * from './env';
 
 /**
  * Extracts Composio configuration from runtime settings

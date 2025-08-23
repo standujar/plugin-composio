@@ -1,2 +1,4 @@
 export { useComposioToolsAction } from './useComposioToolsAction';
-export { useComposioToolsSequentialAction } from './useComposioToolsSequentialAction';
+export { listConnectedAppsAction } from './listConnectedAppsAction';
+export { addComposioToolkitAction } from './addComposioToolkitAction';
+export { removeComposioToolkitAction } from './removeComposioToolkitAction';
