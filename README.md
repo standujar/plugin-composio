@@ -126,7 +126,7 @@ The plugin supports restricting which toolkits users can access via the `COMPOSI
 
 ## 🎯 Usage
 
-The plugin provides **4 main actions** to interact with Composio integrations:
+The plugin provides **5 main actions** to interact with Composio integrations:
 
 ### 🔧 Available Actions
 
@@ -138,7 +138,20 @@ User: "Create a new issue in Linear and assign it to John"
 Assistant: ✅ Created issue LIN-123 in Backend project, assigned to John
 ```
 
-#### 2. **Connect Apps** (`connectToolkitAction`)
+#### 2. **Browse Available Apps** (`browseToolkitsAction`)
+Discover available toolkits by category or functionality:
+
+```
+User: "What email apps can I connect with composio ?"
+Assistant: Available email apps: Gmail, Outlook, Yahoo Mail, ProtonMail
+```
+
+```
+User: "Show me project management tools with composio"
+Assistant: Available project management tools: Linear, Jira, Asana, Trello, Monday.com
+```
+
+#### 3. **Connect Apps** (`connectToolkitAction`)
 Connect new integrations to your account:
 
 ```
@@ -146,7 +159,7 @@ User: "Connect Gmail to my composio account"
 Assistant: Gmail connection initiated! Please authorize at: [auth-link]
 ```
 
-#### 3. **List Connected Apps** (`listConnectedToolkitsAction`)
+#### 4. **List Connected Apps** (`listConnectedToolkitsAction`)
 View all your connected integrations:
 
 ```
@@ -154,7 +167,7 @@ User: "What apps are my composio connected toolkit?"
 Assistant: Your connected apps: Gmail, Slack, Linear, GitHub (4 total)
 ```
 
-#### 4. **Disconnect Apps** (`disconnectToolkitAction`)
+#### 5. **Disconnect Apps** (`disconnectToolkitAction`)
 Remove app connections:
 
 ```
