@@ -22,10 +22,6 @@ A powerful ElizaOS plugin that integrates **250+ external tool integrations** th
 - ⚡ **Smart Workflow Generation**: Automatically creates multi-step workflows from user requests
 - 🎯 **Context-Aware**: Understands conversation context for better tool selection
 - 📊 **Results Provider**: Stores execution results for reuse in subsequent actions
-- 🔄 **Two Execution Modes**: 
-  - **Parallel**: Execute multiple tools simultaneously for speed
-  - **Sequential**: Step-by-step execution with intermediate feedback
-- 💡 **Token Optimization**: 70% reduction in prompt tokens through optimized templates
 - 🧠 **Intelligent Dependency Resolution**: Only fetches missing data, avoids redundant API calls
 - ⚙️ **Smart Context Analysis**: Detects when IDs or data are already available in conversation
 
