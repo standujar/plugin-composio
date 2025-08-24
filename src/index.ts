@@ -5,6 +5,7 @@ import {
   disconnectToolkitAction,
   executeToolsAction,
   listConnectedToolkitsAction,
+  browseToolkitsAction,
 } from './actions';
 import { composioResultsProvider } from './providers/ComposioResultsProvider';
 import { ComposioService } from './services';
@@ -25,7 +26,7 @@ export const composioPlugin: Plugin = {
     logger.info('Composio plugin initialized');
   },
   services: [ComposioService],
-  actions: [executeToolsAction, listConnectedToolkitsAction, connectToolkitAction, disconnectToolkitAction],
+  actions: [executeToolsAction, listConnectedToolkitsAction, connectToolkitAction, disconnectToolkitAction, browseToolkitsAction],
   providers: [composioResultsProvider],
 };
 

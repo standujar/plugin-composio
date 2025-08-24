@@ -3,3 +3,6 @@ export { toolkitConnectionExtractionPrompt as toolkitNameExtractionPrompt } from
 export { toolkitExtractionPrompt as toolkitUseCaseExtractionPrompt } from './toolkitUseCaseExtractionPrompt';
 export { connectionResponsePrompt as toolkitConnectionResponsePrompt } from './toolkitConnectionResponsePrompt';
 export { toolkitRemovalResponsePrompt as toolkitDisconnectionResponsePrompt } from './toolkitDisconnectionResponsePrompt';
+export { toolkitCategoryExtractionPrompt } from './toolkitCategoryExtractionPrompt';
+export { toolkitBrowseResponsePrompt } from './toolkitBrowseResponsePrompt';
+export { connectedToolkitsListResponsePrompt } from './connectedToolkitsListResponsePrompt';

@@ -67,6 +67,14 @@ export interface ToolkitExtractionResponse {
 }
 
 /**
+ * Response from toolkit category extraction prompt
+ */
+export interface ToolkitCategoryExtractionResponse {
+  category: string;
+  confidence: 'high' | 'medium' | 'low';
+}
+
+/**
  * Response from COMPOSIO_INITIATE_CONNECTION
  */
 export interface ComposioInitiateConnectionResponse {
@@ -103,6 +111,18 @@ export interface ToolExecution {
 export interface ToolExecutionResult {
   tool: string;
   result: unknown;
+}
+
+/**
+ * Response from COMPOSIO_RETRIEVE_TOOLKITS
+ */
+export interface ComposioRetrieveToolkitsResponse {
+  data: {
+    apps: string[];
+  };
+  successful: boolean;
+  error: string | null;
+  log_id?: string;
 }
 
 /**

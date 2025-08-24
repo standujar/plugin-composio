@@ -74,6 +74,17 @@ export const removeComposioToolkitAction: Action = {
 
       logger.info(`User wants to remove toolkit: ${toolkit}`);
 
+      // Check if toolkit is allowed
+      const allowedToolkits = runtime.getSetting('COMPOSIO_ALLOWED_TOOLKITS') as string[] || COMPOSIO_DEFAULTS.ALLOWED_TOOLKITS;
+      
+      if (allowedToolkits.length > 0 && !allowedToolkits.includes(toolkit.toLowerCase())) {
+        sendErrorCallback(
+          callback,
+          `The ${toolkit} toolkit is not available. Available toolkits: ${allowedToolkits.join(', ')}`,
+        );
+        return;
+      }
+
       // Get ALL connections for this toolkit and user (not just ACTIVE ones)
       const connectedAppsResponse = await composioService.getComposioClient()?.connectedAccounts.list({
         userIds: [effectiveUserId],
