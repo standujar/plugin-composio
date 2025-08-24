@@ -1,10 +1,10 @@
 import type { IAgentRuntime, Plugin } from '@elizaos/core';
 import { logger } from '@elizaos/core';
-import { 
-  useComposioToolsAction, 
-  listConnectedAppsAction, 
-  addComposioToolkitAction, 
-  removeComposioToolkitAction 
+import {
+  connectToolkitAction,
+  disconnectToolkitAction,
+  executeToolsAction,
+  listConnectedToolkitsAction,
 } from './actions';
 import { composioResultsProvider } from './providers/ComposioResultsProvider';
 import { ComposioService } from './services';
@@ -25,13 +25,8 @@ export const composioPlugin: Plugin = {
     logger.info('Composio plugin initialized');
   },
   services: [ComposioService],
-  actions: [
-    useComposioToolsAction,
-    listConnectedAppsAction,
-    addComposioToolkitAction,
-    removeComposioToolkitAction
-  ],
-  providers: [composioResultsProvider]
+  actions: [executeToolsAction, listConnectedToolkitsAction, connectToolkitAction, disconnectToolkitAction],
+  providers: [composioResultsProvider],
 };
 
 export default composioPlugin;

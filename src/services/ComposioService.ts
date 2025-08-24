@@ -1,8 +1,13 @@
 import { Composio } from '@composio/core';
 import { VercelProvider } from '@composio/vercel';
-import { type IAgentRuntime, logger, Service } from '@elizaos/core';
-import { COMPOSIO_SERVICE_NAME, type ComposioServiceConfig, type ComposioToolResult } from '../types';
+import { type IAgentRuntime, Service, logger } from '@elizaos/core';
 import { COMPOSIO_DEFAULTS } from '../config/defaults';
+import {
+  COMPOSIO_SERVICE_NAME,
+  type ComposioDependencyGraphResponse,
+  type ComposioServiceConfig,
+  type ComposioToolResult,
+} from '../types';
 
 /**
  * Service class for Composio integration
@@ -60,7 +65,6 @@ export class ComposioService extends Service {
     }
   }
 
-
   /**
    * Get connected apps for a user
    * @param userId - Optional user ID (used in multi-user mode)
@@ -73,7 +77,7 @@ export class ComposioService extends Service {
 
     try {
       const effectiveUserId = this.getEffectiveUserId(userId);
-      
+
       // Get user's connected apps (only ACTIVE ones)
       const connectedAppsResponse = await this.composio.connectedAccounts.list({
         userIds: [effectiveUserId],
@@ -92,8 +96,10 @@ export class ComposioService extends Service {
       const toolkitSlugs = connectedApps
         .map((account) => account?.toolkit?.slug)
         .filter((slug): slug is string => slug !== null && slug !== undefined && typeof slug === 'string');
-      
-      logger.debug(`Found ${toolkitSlugs.length} connected apps for user ${effectiveUserId}: ${toolkitSlugs.join(', ')}`);
+
+      logger.debug(
+        `Found ${toolkitSlugs.length} connected apps for user ${effectiveUserId}: ${toolkitSlugs.join(', ')}`,
+      );
       return toolkitSlugs;
     } catch (error) {
       logger.error('Failed to load connected apps:', error);
@@ -196,6 +202,73 @@ export class ComposioService extends Service {
   async isToolkitConnected(toolkitSlug: string, userId?: string): Promise<boolean> {
     const connectedApps = await this.getConnectedApps(userId);
     return connectedApps.includes(toolkitSlug.toLowerCase());
+  }
+
+  /**
+   * Get dependency graph for a tool with retry logic for 500 errors
+   * @param toolSlug - The tool slug to get dependencies for
+   * @param userId - Optional user ID
+   * @returns Dependency graph with parent tools and their requirements
+   */
+  async getToolDependencyGraph(
+    toolSlug: string,
+    userId?: string,
+  ): Promise<{
+    tool_name: string;
+    parent_tools: Array<{ tool_name: string; description: string; required: boolean; reason: string }>;
+  } | null> {
+    if (!this.composio) {
+      throw new Error('Composio client not initialized');
+    }
+
+    const effectiveUserId = this.getEffectiveUserId(userId);
+    const maxRetries = 2;
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const result = (await this.composio.tools.execute('COMPOSIO_GET_DEPENDENCY_GRAPH', {
+          userId: effectiveUserId,
+          arguments: {
+            tool_name: toolSlug,
+          },
+        })) as ComposioDependencyGraphResponse;
+
+        if (!result?.successful) {
+          logger.error(`Failed to get dependency graph for ${toolSlug} (attempt ${attempt}):`, result?.error);
+
+          // If it's a server error and we have retries left, continue to next attempt
+          if (result?.error?.includes('500') && attempt < maxRetries) {
+            logger.info(`Retrying dependency graph fetch for ${toolSlug} (attempt ${attempt + 1}/${maxRetries})`);
+            await new Promise((resolve) => setTimeout(resolve, 1000 * attempt)); // Exponential backoff
+            continue;
+          }
+
+          return null;
+        }
+
+        // Success - return the data
+        logger.debug(`Successfully got dependency graph for ${toolSlug} on attempt ${attempt}`);
+        return result.data;
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        logger.error(`Error getting dependency graph for ${toolSlug} (attempt ${attempt}):`, errorMessage);
+
+        // If it's a server error and we have retries left, continue to next attempt
+        if (errorMessage.includes('500') && attempt < maxRetries) {
+          logger.info(
+            `Retrying dependency graph fetch for ${toolSlug} due to server error (attempt ${attempt + 1}/${maxRetries})`,
+          );
+          await new Promise((resolve) => setTimeout(resolve, 1000 * attempt)); // Exponential backoff
+          continue;
+        }
+
+        // If it's not a 500 error or no more retries, return null
+        return null;
+      }
+    }
+
+    // This should never be reached, but just in case
+    return null;
   }
 
   /**
