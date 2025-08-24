@@ -1,4 +1,4 @@
-export const composioToolsExamples = [
+export const executeToolsExamples = [
   [
     {
       name: '{{user}}',

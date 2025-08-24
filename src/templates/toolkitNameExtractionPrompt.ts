@@ -1,4 +1,4 @@
-export const toolkitExtractionPrompt = ({
+export const toolkitConnectionExtractionPrompt = ({
   userMessage,
 }: {
   userMessage: string;

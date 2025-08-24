@@ -1,11 +1,11 @@
 /**
- * Generates a prompt to extract workflow information from user request
+ * Generates a prompt to extract toolkit and use case information from user request
  * @param connectedApps - List of connected app names
  * @param conversationContext - Previous conversation context
  * @param userRequest - The user's current request
- * @returns Formatted prompt string for workflow extraction
+ * @returns Formatted prompt string for toolkit extraction
  */
-export const queryExtractionPrompt = ({
+export const toolkitExtractionPrompt = ({
   connectedApps,
   conversationContext,
   userRequest,
@@ -13,7 +13,7 @@ export const queryExtractionPrompt = ({
   connectedApps: string[];
   conversationContext: string;
   userRequest: string;
-}) => `Extract workflow from request.
+}) => `Extract toolkit and use case from request.
 
 Request: "${userRequest}"
 ${conversationContext ? `Context: ${conversationContext}` : ''}
@@ -31,8 +31,8 @@ JSON format:
 }
 
 Examples:
-"Create issue in Linear" → {"toolkit": "linear", "use_case": "Create issue"}
-"Update my GitHub PR" → {"toolkit": "github", "use_case": "Update pull request"}
-"Send message to engineering channel" → {"toolkit": "slack", "use_case": "Send message to channel"}
+"Create issue in Linear" → {"toolkit": "linear", "use_case": "create issue"}
+"Update my GitHub PR" → {"toolkit": "github", "use_case": "update pull request"}
+"Send message to engineering channel" → {"toolkit": "slack", "use_case": "send message to channel"}
 
 Return JSON only:`;
