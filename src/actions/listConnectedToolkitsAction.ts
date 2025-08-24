@@ -9,8 +9,10 @@ import {
 } from '@elizaos/core';
 import { listConnectedToolkitsExamples } from '../examples';
 import type { ComposioService } from '../services';
+import { connectedToolkitsListResponsePrompt } from '../templates';
 import { COMPOSIO_SERVICE_NAME, getModelResponseText } from '../types';
 import { sendErrorCallback, sendSuccessCallback } from '../utils';
+import { COMPOSIO_DEFAULTS } from '../config/defaults';
 
 export const listConnectedAppsAction: Action = {
   name: 'LIST_CONNECTED_APPS',
@@ -21,9 +23,10 @@ export const listConnectedAppsAction: Action = {
     'CONNECTED_APPS',
     'COMPOSIO_APPS',
     'MY_APPS',
-    'AVAILABLE_APPS',
+    'MY_CONNECTED_APPS',
     'CONNECTED_SERVICES',
-    'LIST_INTEGRATIONS',
+    'MY_INTEGRATIONS',
+    'CONNECTED_TOOLKITS',
   ],
   description: 'List all connected apps and integrations available in Composio',
   examples: listConnectedToolkitsExamples,
@@ -66,8 +69,11 @@ export const listConnectedAppsAction: Action = {
 
       // Use the model to format the response naturally
       const response = await runtime.useModel(ModelType.TEXT_SMALL, {
-        prompt: `The user asked about their connected apps. Here are the connected apps: ${connectedApps.join(', ')}. Provide a brief, natural response listing these apps.`,
-        temperature: 0.7,
+        prompt: connectedToolkitsListResponsePrompt({
+          connectedApps,
+          userMessage: message.content.text,
+        }),
+        temperature: COMPOSIO_DEFAULTS.CONNECTED_TOOLKITS_LIST_RESPONSE_TEMPERATURE,
       });
 
       const responseText = getModelResponseText(response, connectedApps.join(', '));

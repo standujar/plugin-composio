@@ -80,6 +80,17 @@ export const addComposioToolkitAction: Action = {
 
       logger.info(`User wants to connect toolkit: ${toolkit}`);
 
+      // Check if toolkit is allowed
+      const allowedToolkits = runtime.getSetting('COMPOSIO_ALLOWED_TOOLKITS') as string[] || COMPOSIO_DEFAULTS.ALLOWED_TOOLKITS;
+      
+      if (allowedToolkits.length > 0 && !allowedToolkits.includes(toolkit.toLowerCase())) {
+        sendErrorCallback(
+          callback,
+          `The ${toolkit} toolkit is not available. Available toolkits: ${allowedToolkits.join(', ')}`,
+        );
+        return;
+      }
+
       // Check if toolkit exists using COMPOSIO_SEARCH_TOOLS
       const searchResult = (await composioClient.tools.execute('COMPOSIO_SEARCH_TOOLS', {
         userId: effectiveUserId,

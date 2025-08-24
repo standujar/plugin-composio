@@ -5,6 +5,7 @@ import { COMPOSIO_DEFAULTS } from '../config/defaults';
 import {
   COMPOSIO_SERVICE_NAME,
   type ComposioDependencyGraphResponse,
+  type ComposioRetrieveToolkitsResponse,
   type ComposioServiceConfig,
   type ComposioToolResult,
 } from '../types';
@@ -269,6 +270,41 @@ export class ComposioService extends Service {
 
     // This should never be reached, but just in case
     return null;
+  }
+
+  /**
+   * Retrieve toolkits by category using COMPOSIO_RETRIEVE_TOOLKITS
+   * @param category - Category of apps to retrieve (e.g., "send email")
+   * @param userId - Optional user ID
+   * @returns List of available toolkit slugs for the category
+   */
+  async getToolkitsByCategory(category: string, userId?: string): Promise<string[]> {
+    if (!this.composio) {
+      throw new Error('Composio client not initialized');
+    }
+
+    try {
+      const effectiveUserId = this.getEffectiveUserId(userId);
+      
+      const result = (await this.composio.tools.execute('COMPOSIO_RETRIEVE_TOOLKITS', {
+        userId: effectiveUserId,
+        arguments: {
+          category,
+        },
+      })) as ComposioRetrieveToolkitsResponse;
+
+      if (!result?.successful) {
+        logger.error(`Failed to retrieve toolkits for category "${category}":`, result?.error);
+        return [];
+      }
+
+      const apps = result.data?.apps || [];
+      logger.debug(`Found ${apps.length} toolkits for category "${category}": ${apps.join(', ')}`);
+      return apps;
+    } catch (error) {
+      logger.error(`Error retrieving toolkits for category "${category}":`, error);
+      return [];
+    }
   }
 
   /**

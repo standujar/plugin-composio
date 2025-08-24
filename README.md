@@ -52,6 +52,9 @@ COMPOSIO_DEFAULT_USER_ID=your_user_id
 # Optional: Multi-user mode (default: false)
 COMPOSIO_MULTI_USER_MODE=false               # false: single user with default ID, true: per-message user ID
 
+# Optional: Restrict available toolkits (default: empty, allows all)
+COMPOSIO_ALLOWED_TOOLKITS=gmail,slack,github  # Comma-separated list of allowed toolkit names
+
 # Optional: Fine-tuning parameters
 COMPOSIO_TOOLKIT_EXTRACTION_TEMPERATURE=0.7              # Toolkit & use case extraction (default: 0.7)
 COMPOSIO_TOOL_EXECUTION_TEMPERATURE=0.5                  # Tool execution workflow (default: 0.5)
@@ -93,6 +96,21 @@ The plugin supports two user modes:
 - Isolated app connections and data per user
 - Required for multi-tenant applications
 - Each user must connect their own apps
+
+### Toolkit Restrictions
+
+The plugin supports restricting which toolkits users can access via the `COMPOSIO_ALLOWED_TOOLKITS` setting:
+
+#### 🔓 **All Toolkits Mode** (default: `COMPOSIO_ALLOWED_TOOLKITS=""`)
+- Users can browse, connect, and disconnect any available toolkit
+- Full access to Composio's entire toolkit catalog
+- Toolkit discovery uses live API calls
+
+#### 🔒 **Restricted Toolkits Mode** (`COMPOSIO_ALLOWED_TOOLKITS="gmail,slack,github"`)  
+- Users can only browse, connect, and disconnect specified toolkits
+- Browsing shows only the allowed toolkits (no API call needed)
+- Connection/disconnection attempts for non-allowed toolkits are blocked
+- Useful for enterprise environments or controlled deployments
 
 ### Getting Started with Composio
 
