@@ -2,10 +2,9 @@
 
 <div align="center">
 
-[![npm version](https://img.shields.io/npm/v/@standujar/plugin-composio.svg)](https://www.npmjs.com/package/@standujar/plugin-composio)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![ElizaOS Compatible](https://img.shields.io/badge/ElizaOS-Compatible-green.svg)](https://github.com/elizaOS/eliza)
-[![Version](https://img.shields.io/badge/version-1.2.13-blue.svg)](https://github.com/standujar/plugin-composio/releases/tag/v1.2.13)
+[![Version](https://img.shields.io/badge/version-1.2.21-blue.svg)](https://github.com/standujar/plugin-composio/releases/tag/v1.2.21)
 
 A powerful ElizaOS plugin that integrates **250+ external tool integrations** through [Composio](https://composio.dev). Enable your AI agent to interact with GitHub, Slack, Linear, Google Drive, Notion, and hundreds more services through natural language.
 
@@ -52,14 +51,17 @@ yarn add @standujar/plugin-composio
 COMPOSIO_API_KEY=your_composio_api_key
 
 # Optional: Default user ID (default: "default")
-COMPOSIO_USER_ID=your_user_id
+COMPOSIO_DEFAULT_USER_ID=your_user_id
 
-# Optional: Execution mode (default: "parallel")
-COMPOSIO_EXECUTION_MODE=parallel    # Options: "parallel" | "sequential"
+# Optional: Multi-user mode (default: false)
+COMPOSIO_MULTI_USER_MODE=false               # false: single user with default ID, true: per-message user ID
 
 # Optional: Fine-tuning parameters
-COMPOSIO_WORKFLOW_EXTRACTION_TEMPERATURE=0.7    # LLM temperature for understanding user intent (default: 0.7)
-COMPOSIO_TOOL_EXECUTION_TEMPERATURE=0.3         # LLM temperature for tool execution (default: 0.3)
+COMPOSIO_TOOLKIT_EXTRACTION_TEMPERATURE=0.7              # Toolkit & use case extraction (default: 0.7)
+COMPOSIO_TOOL_EXECUTION_TEMPERATURE=0.5                  # Tool execution workflow (default: 0.5)
+COMPOSIO_TOOLKIT_CONNECTION_EXTRACTION_TEMPERATURE=0.3   # Toolkit name extraction (default: 0.3)
+COMPOSIO_TOOLKIT_CONNECTION_RESPONSE_TEMPERATURE=0.7     # Connection response formatting (default: 0.7)
+COMPOSIO_TOOLKIT_REMOVAL_RESPONSE_TEMPERATURE=0.7        # Disconnection response formatting (default: 0.7)
 ```
 
 ### Character Configuration
@@ -71,13 +73,30 @@ Add the plugin to your ElizaOS character configuration:
   "name": "MyAssistant",
   "plugins": ["@standujar/plugin-composio"],
   "settings": {
+    "COMPOSIO_MULTI_USER_MODE": "{{COMPOSIO_MULTI_USER_MODE}}",
     "secrets": {
       "COMPOSIO_API_KEY": "{{COMPOSIO_API_KEY}}",
-      "COMPOSIO_USER_ID": "{{COMPOSIO_USER_ID}}"
+      "COMPOSIO_DEFAULT_USER_ID": "{{COMPOSIO_DEFAULT_USER_ID}}"
+
     }
   }
 }
 ```
+
+### User Modes
+
+The plugin supports two user modes:
+
+#### 🧑‍💼 **Single User Mode** (default: `COMPOSIO_MULTI_USER_MODE=false`)
+- Uses the same user ID for all requests (`COMPOSIO_DEFAULT_USER_ID`)
+- All users share the same connected apps and data
+- Simpler setup, good for personal use or single-tenant scenarios
+
+#### 👥 **Multi-User Mode** (`COMPOSIO_MULTI_USER_MODE=true`)
+- Each message sender gets their own user ID (`message.entityId`)
+- Isolated app connections and data per user
+- Required for multi-tenant applications
+- Each user must connect their own apps
 
 ### Getting Started with Composio
 
@@ -93,33 +112,48 @@ Add the plugin to your ElizaOS character configuration:
 
 ## 🎯 Usage
 
-The plugin automatically processes natural language requests and executes the appropriate tools through intelligent workflows. You can choose between two execution modes based on your needs:
+The plugin provides **4 main actions** to interact with Composio integrations:
 
-### Execution Modes
+### 🔧 Available Actions
 
-Set the execution mode via the `COMPOSIO_EXECUTION_MODE` environment variable:
+#### 1. **Tool Execution** (`executeToolsAction`)
+Execute workflows using connected apps based on natural language requests:
 
-#### 🚀 Parallel Execution (Default)
-`COMPOSIO_EXECUTION_MODE=parallel`
-- All tools executed in one LLM call
-- Single response with complete results
-- Lower token usage
-- No intermediate updates
-- Best for simple or independent tasks
+```
+User: "Create a new issue in Linear and assign it to John"
+Assistant: ✅ Created issue LIN-123 in Backend project, assigned to John
+```
 
-#### 📋 Sequential Execution
-`COMPOSIO_EXECUTION_MODE=sequential`
-- Step-by-step progress updates
-- Intermediate results visible to user
-- Context passed between steps
-- Best for complex workflows with dependencies
+#### 2. **Connect Apps** (`connectToolkitAction`)
+Connect new integrations to your account:
+
+```
+User: "Connect Gmail to my composio account"
+Assistant: Gmail connection initiated! Please authorize at: [auth-link]
+```
+
+#### 3. **List Connected Apps** (`listConnectedToolkitsAction`)
+View all your connected integrations:
+
+```
+User: "What apps are my composio connected toolkit?"
+Assistant: Your connected apps: Gmail, Slack, Linear, GitHub (4 total)
+```
+
+#### 4. **Disconnect Apps** (`disconnectToolkitAction`)
+Remove app connections:
+
+```
+User: "Remove Slack composio integration"
+Assistant: ✅ Slack has been disconnected successfully
+```
 
 ### Example Interactions
 
 #### 📊 Linear Integration - Smart Dependency Resolution
 
 ```
-User: Create a new issue in Linear for the project "Backend" and assign it to Alice
+User: Create a new issue in Linear for the project "Backend" and assign it to Alice using composio
 
 [Workflow Analysis]
 1. Extract: "Create issue" (linear)
@@ -168,34 +202,33 @@ Assistant: I've sent the standup summary to your team channel.
 The message was sent with mentions for all 12 team members.
 ```
 
-### How It Works
+### How Tool Execution Works
 
 ```mermaid
 graph TD
-    A[User Request] --> B[Workflow Extraction<br/>verb + action]
-    B --> C{Select Toolkit}
+    A[User Request] --> B[Extract Toolkit & Use Case]
+    B --> C[Check Connected Apps]
     C --> D[COMPOSIO_SEARCH_TOOLS]
-    D --> E[Get Tools]
-    E --> F[Dependency Analysis<br/>Check missing data]
-    F -->|Has Dependencies| G[Fetch Missing Data]
-    F -->|No Dependencies| H[Execute Main Action]
-    G --> I[Combine Use Cases<br/>Dependencies first]
-    I --> H
-    H --> J[Natural Language Response]
+    D --> E[Get Dependency Graph]
+    E --> F[Include ALL Dependencies]
+    F --> G[Fetch Tools from SDK]
+    G --> H[Execute with LLM]
+    H --> I[Store Successful Results]
+    I --> J[Natural Language Response]
     
     style A fill:#e1f5fe
     style J fill:#c8e6c9
-    style F fill:#fff3e0
+    style I fill:#fff3e0
 ```
 
-### Workflow Intelligence
+### Key Features
 
-The plugin uses optimized templates and smart analysis:
-- 🎯 **Verb + Action Format** - Simple, clear use case extraction
-- 🧠 **Context-Aware Dependencies** - Only fetches data not already in conversation
-- ⚡ **Selective Data Fetching** - Skips redundant API calls if IDs are provided
-- 🔗 **Smart Use Case Combination** - Dependencies execute before main action
-- 📊 **Optimized Templates** - 70% less tokens while maintaining accuracy
+- 🎯 **Smart Toolkit Detection** - Automatically identifies the right app from user request
+- 🔗 **Dependency Resolution** - Includes ALL tool dependencies, lets LLM create intelligent workflows  
+- 📊 **Results Provider** - Stores successful execution results for context in future actions
+- 🔄 **Multi-User Support** - Works in both single-user and multi-user modes
+- ⚡ **Simplified Logic** - Removed complex filtering, improved LLM decision making
+- 🛡️ **Error Handling** - Retry logic for 500 errors, proper error reporting
 
 
 ## 🛠️ Technical Details
@@ -208,20 +241,20 @@ sequenceDiagram
     participant P as Plugin
     participant R as Results Provider
     participant C as Composio API
-    participant T as Tool (GitHub/Slack/etc)
+    participant T as Tools (GitHub/Slack/etc)
     
     U->>P: Natural language request
-    P->>P: Extract workflow & toolkit
-    P->>R: Check previous executions
-    R-->>P: Related execution results
+    P->>P: Extract toolkit & use case
+    P->>R: Get previous executions
+    R-->>P: Relevant execution history
     P->>C: COMPOSIO_SEARCH_TOOLS
-    C-->>P: Relevant tools list
-    P->>C: Execute tools.get()
-    C-->>P: Tool definitions
-    P->>T: Execute tool with params
-    T-->>P: Results
-    P->>R: Store execution results
-    P->>U: Natural response
+    C-->>P: Main tool + dependencies
+    P->>C: Get ALL dependency tools
+    C-->>P: Complete tool collection
+    P->>T: Execute with LLM + tools
+    T-->>P: Tool execution results
+    P->>R: Store successful results only
+    P->>U: Natural language response
 ```
 
 ### Key Components
@@ -232,12 +265,17 @@ sequenceDiagram
   - Enables context-aware subsequent actions
   - Automatically filters successful results
   - Provides execution history for dependency resolution
-- **useComposioToolsAction**: Main action handler with intelligent dependency resolution
-- **useComposioToolsSequentialAction**: Sequential action handler for step-by-step execution
+- **Actions**:
+  - `executeToolsAction`: Main action handler with intelligent dependency resolution
+  - `connectToolkitAction`: Connect new apps and integrations
+  - `disconnectToolkitAction`: Remove app connections
+  - `listConnectedToolkitsAction`: Show connected apps and services
 - **Optimized Templates**:
-  - `queryExtractionPrompt`: Verb + action extraction (~20 lines)
-  - `dependencyAnalysisPrompt`: Smart dependency detection (~25 lines)
-  - `contextualPrompt`: Minimal execution prompt (~10 lines)
+  - `toolExecutionPrompt`: Minimal execution prompt with workflow guidance
+  - `toolkitUseCaseExtractionPrompt`: Verb + action extraction
+  - `toolkitNameExtractionPrompt`: Extract toolkit names from user messages
+  - `toolkitConnectionResponsePrompt`: Format connection responses
+  - `toolkitDisconnectionResponsePrompt`: Format disconnection responses
 - **Context-Aware Analysis**: Avoids fetching data already in conversation
 - **Smart Use Case Combination**: Dependencies execute before main actions
 
@@ -297,22 +335,13 @@ This plugin is licensed under the MIT License. See [LICENSE](LICENSE) file for d
 - **Issues**: [GitHub Issues](https://github.com/standujar/plugin-composio/issues)
 - **Discord**: Join the ElizaOS Discord community
 
-## 🚀 What's New in v1.2.13
-
-- ⚡ **70% Token Reduction**: Optimized templates from ~100 to ~20 lines
-- 🧠 **Smart Context Analysis**: Avoids redundant API calls when data exists
-- 🎯 **Selective Dependency Resolution**: Only fetches truly missing data
-- 📝 **Verb + Action Format**: Cleaner, more predictable use cases
-- 🔄 **Improved Use Case Combination**: Dependencies execute before main action
-- 📊 **Results Provider**: New provider system for persistent execution history
-
 ## 📈 Roadmap
 
-- [ ] Connect new Apps from Action
-- [ ] List Connected Apps from Action
+- [x] **Connect new Apps from Action** - ✅ Available via `connectToolkitAction`
+- [x] **List Connected Apps from Action** - ✅ Available via `listConnectedToolkitsAction`
+- [x] **Disconnect Apps from Action** - ✅ Available via `disconnectToolkitAction`
 - [ ] Composio Trigger creation from Action
-- [ ] Multi-step workflow persistence
-- [ ] Parallel dependency resolution
+- [ ] Upgrade to latest composio core supporting ai sdk 5
 
 ---
 
