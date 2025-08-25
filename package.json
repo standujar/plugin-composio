@@ -1,7 +1,7 @@
 {
   "name": "@standujar/plugin-composio",
   "description": "Composio plugin for elizaOS",
-  "version": "1.2.23",
+  "version": "1.3.1",
   "type": "module",
   "main": "dist/index.js",
   "module": "dist/index.js",
@@ -81,6 +81,18 @@
         "type": "string",
         "description": "Execution mode for tool execution",
         "default": "sequential",
+        "optional": true
+      },
+      "COMPOSIO_MULTI_USER_MODE": {
+        "type": "boolean",
+        "description": "Enable multi-user mode (false: single user with default ID, true: per-message user ID)",
+        "default": false,
+        "optional": true
+      },
+      "COMPOSIO_ALLOWED_TOOLKITS": {
+        "type": "string",
+        "description": "Comma-separated list of allowed toolkit names (empty means all toolkits allowed)",
+        "default": "",
         "optional": true
       }
     }

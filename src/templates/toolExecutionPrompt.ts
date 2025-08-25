@@ -1,4 +1,4 @@
-import type { DependencyTool, ToolExecution } from '../types';
+import type { DependencyTool, ToolExecution, PreviousStepResult } from '../types';
 
 /**
  * Generates a contextual prompt for tool execution
@@ -14,15 +14,49 @@ export const contextualPrompt = ({
   agentResponseStyle,
   previousExecutions = [],
   dependencyGraph = [],
+  originalRequest,
+  currentStepIndex,
+  totalSteps,
+  previousStepResults = [],
 }: {
   userRequest: string;
   conversationContext?: string;
   agentResponseStyle?: string;
   previousExecutions?: ToolExecution[];
   dependencyGraph?: DependencyTool[];
+  originalRequest?: string;
+  currentStepIndex?: number;
+  totalSteps?: number;
+  previousStepResults?: PreviousStepResult[];
 }) => {
   const contextSection = conversationContext ? `${conversationContext}\n\n` : '';
   const styleSection = agentResponseStyle ? `Style: ${agentResponseStyle}\n\n` : '';
+
+  // Build contextual user request for sequential multi-toolkit execution
+  let contextualUserRequest = userRequest;
+  
+  // If we have multi-step context, enhance the user request
+  if (originalRequest && currentStepIndex !== undefined && totalSteps !== undefined) {
+    contextualUserRequest = `Original request: "${originalRequest}"
+
+Current step ${currentStepIndex + 1} of ${totalSteps}: ${userRequest}`;
+
+    // Add results from previous steps if any
+    if (previousStepResults.length > 0) {
+      const previousResultsSummary = previousStepResults
+        .map((result, index) => {
+          const toolData = result.toolResults
+            ?.map(tr => `${tr.tool}: ${JSON.stringify(tr.result)}`.substring(0, 200))
+            .join('; ');
+          
+          return `Step ${index + 1} (${result.groupName}): ${result.useCase}
+          Response: ${result.responseText}${toolData ? `\nTool Results: ${toolData}` : ''}`;
+        })
+        .join('\n\n');
+      
+      contextualUserRequest += `\n\nPrevious steps completed:\n${previousResultsSummary}`;
+    }
+  }
 
   // Format previous executions for the LLM
   const executionsSection =
@@ -55,7 +89,7 @@ ${dependencyGraph
 `
       : '';
 
-  return `${styleSection}${contextSection}${executionsSection}${dependencySection}Task: ${userRequest}
+  return `${styleSection}${contextSection}${executionsSection}${dependencySection}Task: ${contextualUserRequest}
 
 **WORKFLOW GUIDANCE**:
 1. **Check previous executions first** - If you already have the required data (IDs, parameters), use it directly
