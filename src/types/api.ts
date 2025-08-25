@@ -3,11 +3,40 @@
  */
 
 /**
- * Response from queryExtractionPrompt LLM call
+ * Response from queryExtractionPrompt LLM call - Multi-toolkit format
  */
 export interface WorkflowExtractionResponse {
-  toolkit: string;
+  toolkits: Array<{
+    name: string;
+    use_case: string;
+  }>;
+}
+
+/**
+ * Type for an extracted toolkit
+ */
+export interface ExtractedToolkit {
+  name: string;
   use_case: string;
+}
+
+/**
+ * Type for a group of consecutive toolkits
+ */
+export interface ToolkitGroup {
+  name: string;
+  use_cases: string[];
+}
+
+/**
+ * Type for a prepared toolkit group with tools ready
+ */
+export interface PreparedToolkitGroup extends ToolkitGroup {
+  tools: VercelAIToolCollection;
+  dependencyGraphs: Array<{
+    tool_name: string;
+    parent_tools: DependencyTool[];
+  }>;
 }
 
 /**
@@ -99,6 +128,7 @@ export interface ComposioInitiateConnectionResponse {
 export interface ToolExecution {
   timestamp: number;
   useCase: string;
+  entityId: string;  // User/entity who executed this
   results: Array<{
     tool: string;
     result: unknown;
@@ -129,3 +159,16 @@ export interface ComposioRetrieveToolkitsResponse {
  * Generic model response that can be either string or object with text property
  */
 export type ModelResponse = string | { text: string; [key: string]: unknown };
+
+/**
+ * Results from previous step execution for sequential multi-toolkit workflows
+ */
+export interface PreviousStepResult {
+  groupName: string;
+  useCase: string;
+  responseText: string;
+  toolResults?: Array<{
+    tool: string;
+    result: unknown;
+  }>;
+}

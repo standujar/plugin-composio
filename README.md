@@ -96,6 +96,7 @@ The plugin supports two user modes:
 - Isolated app connections and data per user
 - Required for multi-tenant applications
 - Each user must connect their own apps
+- **Execution history isolation**: Results provider maintains separate history per entity
 
 ### Toolkit Restrictions
 
@@ -229,32 +230,66 @@ Assistant: I've sent the standup summary to your team channel.
 The message was sent with mentions for all 12 team members.
 ```
 
-### How Tool Execution Works
+### How Multi-Toolkit Sequential Execution Works
+
+The plugin intelligently handles complex requests that require multiple toolkits by executing them sequentially while passing results between steps:
 
 ```mermaid
 graph TD
-    A[User Request] --> B[Extract Toolkit & Use Case]
-    B --> C[Check Connected Apps]
-    C --> D[COMPOSIO_SEARCH_TOOLS]
-    D --> E[Get Dependency Graph]
-    E --> F[Include ALL Dependencies]
-    F --> G[Fetch Tools from SDK]
-    G --> H[Execute with LLM]
-    H --> I[Store Successful Results]
-    I --> J[Natural Language Response]
+    A[User Request] --> B[Extract Multiple Toolkits & Use Cases]
+    B --> C[Group Consecutive Toolkits]
+    C --> D[Prepare All Groups in Parallel]
+    D --> E[Search Tools for Each Group]
+    E --> F[Fetch Dependency Graphs]
+    F --> G[Collect All Required Tools]
+    G --> H[Sequential Execution Loop]
+    H --> I[Execute Group 1 with Original Request]
+    I --> J[Capture Tool Results & Response]
+    J --> K[Execute Group 2 with Context]
+    K --> L[Pass Previous Results to Context]
+    L --> M[Continue Until All Groups Done]
+    M --> N[Complete Workflow]
     
     style A fill:#e1f5fe
-    style J fill:#c8e6c9
-    style I fill:#fff3e0
+    style D fill:#fff3e0
+    style H fill:#f3e5f5
+    style N fill:#c8e6c9
+```
+
+#### Example: Multi-Toolkit Workflow
+```
+User: "Get my Linear issues that are In Progress, then send an email summary to john@company.com"
+
+Extraction: 
+- Group 1: Linear → ["get issues in progress"]  
+- Group 2: Gmail → ["send email summary"]
+
+Phase 1 - Parallel Preparation:
+✅ Linear tools fetched (LINEAR_LIST_ISSUES, etc.)
+✅ Gmail tools fetched (GMAIL_SEND_EMAIL, etc.)
+
+Phase 2 - Sequential Execution:
+Step 1: Linear execution
+- Context: "Original request: Get my Linear issues..."
+- Current step: "get issues in progress" 
+- Result: Found 3 issues (KEN-123, KEN-124, KEN-125)
+
+Step 2: Gmail execution  
+- Context: "Original request: Get my Linear issues... 
+  Previous step (Linear): Found 3 issues: [{"id":"KEN-123","title":"Plugin Composio"}...]"
+- Current step: "send email summary"
+- Uses the Linear results to compose the email content
 ```
 
 ### Key Features
 
 - 🎯 **Smart Toolkit Detection** - Automatically identifies the right app from user request
+- 🔗 **Sequential Multi-Toolkit Execution** - Handles complex workflows spanning multiple services
+- 🧠 **Context-Aware Processing** - Passes results from previous steps to subsequent ones
+- ⚡ **Parallel Preparation** - Pre-fetches all required tools simultaneously for optimal performance
 - 🔗 **Dependency Resolution** - Includes ALL tool dependencies, lets LLM create intelligent workflows  
 - 📊 **Results Provider** - Stores successful execution results for context in future actions
 - 🔄 **Multi-User Support** - Works in both single-user and multi-user modes
-- ⚡ **Simplified Logic** - Removed complex filtering, improved LLM decision making
 - 🛡️ **Error Handling** - Retry logic for 500 errors, proper error reporting
 
 
@@ -287,11 +322,13 @@ sequenceDiagram
 ### Key Components
 
 - **ComposioService**: Manages Composio client and tool execution
-- **ComposioResultsProvider**: Persistent storage for tool execution results
-  - Stores up to 5 executions per toolkit
+- **ComposioResultsProvider**: Persistent storage for tool execution results with multi-user isolation
+  - Stores up to 5 executions per toolkit per user/entity
   - Enables context-aware subsequent actions
   - Automatically filters successful results
   - Provides execution history for dependency resolution
+  - **Multi-user support**: Isolates execution history per entity in multi-user mode
+  - **Single-user mode**: Uses default user ID for all executions
 - **Actions**:
   - `executeToolsAction`: Main action handler with intelligent dependency resolution
   - `connectToolkitAction`: Connect new apps and integrations

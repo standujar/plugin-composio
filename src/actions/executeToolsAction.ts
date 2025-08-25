@@ -15,8 +15,9 @@ import { toolExecutionPrompt, toolkitUseCaseExtractionPrompt } from '../template
 import {
   COMPOSIO_SERVICE_NAME,
   type ComposioSearchToolsResponse,
-  type DependencyTool,
-  type VercelAIToolCollection,
+  type ExtractedToolkit,
+  type PreparedToolkitGroup,
+  type PreviousStepResult,
   type WorkflowExtractionResponse,
   extractResponseText,
   isModelToolResponse,
@@ -24,6 +25,7 @@ import {
 import {
   buildConversationContext,
   getAgentResponseStyle,
+  groupConsecutiveToolkits,
   initializeComposioService,
   sendErrorCallback,
   sendSuccessCallback,
@@ -69,7 +71,7 @@ export const useComposioToolsAction: Action = {
         return;
       }
 
-      // Build conversation context and get agent style
+      // Build conversation context and get agent style once
       const conversationContext = buildConversationContext(state, message, runtime);
       const agentResponseStyle = getAgentResponseStyle(state);
 
@@ -83,161 +85,220 @@ export const useComposioToolsAction: Action = {
         temperature: COMPOSIO_DEFAULTS.TOOLKIT_EXTRACTION_TEMPERATURE,
       })) as WorkflowExtractionResponse;
 
-      const { toolkit, use_case: useCase } = workflowResponse;
+      const { toolkits } = workflowResponse;
 
-      if (!toolkit || !useCase) {
+      if (!toolkits || !Array.isArray(toolkits) || toolkits.length === 0) {
         logger.info('Invalid workflow response format:', JSON.stringify(workflowResponse));
+        sendErrorCallback(callback, 'Unable to understand the request. Please be more specific about what you want to do.');
         return;
       }
 
-      // Check if the toolkit is in our connected apps
-      const selectedToolkit = connectedApps.find((app) => app.toLowerCase() === toolkit.toLowerCase());
+      // Convert to ExtractedToolkit array
+      const extractedToolkits: ExtractedToolkit[] = toolkits.map(t => ({ name: t.name, use_case: t.use_case }));
+      logger.info(`Extracted ${extractedToolkits.length} toolkit operations:`, JSON.stringify(extractedToolkits));
 
-      if (!selectedToolkit) {
-        logger.info(`LLM suggested toolkit "${toolkit}" but it's not in connected apps: [${connectedApps.join(', ')}]`);
-        sendErrorCallback(
-          callback,
-          `The ${toolkit} app is not connected. Please connect it first in your Composio dashboard.`,
-        );
-        return;
-      }
-
-      logger.info(`Using COMPOSIO_SEARCH_TOOLS for toolkit: ${selectedToolkit} with use case: ${useCase}`);
-
-      // Get previous executions from provider
-      const resultsProvider = runtime.providers.find((p) => p.name === 'COMPOSIO_RESULTS') as ComposioResultsProvider;
-      const previousExecutions = resultsProvider?.getToolkitExecutions(selectedToolkit) || [];
-
-      logger.info(
-        `[ComposioResults] Found ${previousExecutions.length} previous executions for toolkit: ${selectedToolkit}`,
-      );
-
-      // Step 3: Search for the main tool
-      const searchResult = (await composioClient.tools.execute('COMPOSIO_SEARCH_TOOLS', {
-        userId: effectiveUserId,
-        arguments: {
-          use_case: useCase,
-          toolkits: [toolkit.toLowerCase()],
-        },
-      })) as ComposioSearchToolsResponse;
-
-      logger.info('Search reasoning result:', searchResult.data.reasoning);
-
-      if (!searchResult?.successful || !searchResult?.data?.results || searchResult.data.results.length === 0) {
-        logger.info(`COMPOSIO_SEARCH_TOOLS failed: ${searchResult?.error}`);
-        sendErrorCallback(
-          callback,
-          `Unable to find tools for ${toolkit}. Please ensure the ${toolkit} app is connected in your Agent dashboard.`,
-          searchResult?.error,
-        );
-        return;
-      }
-
-      // Get the main tool
-      const mainToolSlug = searchResult.data.results[0].tool_slug || searchResult.data.results[0].tool;
-      logger.info(`Main tool identified: ${mainToolSlug}`);
-
-      // Step 4: Get dependency graph for the main tool and include ALL dependencies
-      const dependencyGraphResult = await composioService.getToolDependencyGraph(mainToolSlug, effectiveUserId);
-
-      // Check if we have dependencies and include them all
-      const parentTools: DependencyTool[] = dependencyGraphResult?.parent_tools || [];
-      let toolsToFetch = [mainToolSlug];
-
-      if (parentTools.length > 0) {
-        logger.info(`Found ${parentTools.length} dependencies for ${mainToolSlug}, including all of them`);
-
-        // Include ALL dependencies - let the final LLM decide which ones to use and how
-        const allDependencyTools = parentTools.map((dep) => dep.tool_name);
-        toolsToFetch = [mainToolSlug, ...allDependencyTools];
-
-        logger.info(`Including all dependencies: ${allDependencyTools.join(', ')}`);
-      } else {
-        logger.info(`No dependencies found for ${mainToolSlug}`);
-      }
-
-      // Step 5: Get all needed tools from SDK
-      logger.info(`Fetching ${toolsToFetch.length} tools: ${toolsToFetch.join(', ')}`);
-
-      const tools: VercelAIToolCollection = await composioClient.tools.get(effectiveUserId, {
-        tools: toolsToFetch,
-      });
-
-      if (Object.keys(tools).length === 0) {
-        logger.info('No tools found or retrieved');
-        sendErrorCallback(
-          callback,
-          `I couldn't find any tools to help with: "${useCase}". Please try rephrasing your request.`,
-        );
-        return;
-      }
-
-      // Step 6: Execute with context
-      const prompt = toolExecutionPrompt({
-        userRequest: useCase,
-        conversationContext,
-        agentResponseStyle: agentResponseStyle,
-        previousExecutions: previousExecutions,
-        dependencyGraph: parentTools,
-      });
-
-      logger.info('Executing tools with contextual prompt');
-
-      const response = await runtime.useModel(ModelType.TEXT_LARGE, {
-        prompt,
-        tools,
-        toolChoice: 'auto',
-        temperature: COMPOSIO_DEFAULTS.TOOL_EXECUTION_TEMPERATURE,
-      });
-
-      // Extract the response text
-      let responseText = '';
-
-      if (isModelToolResponse(response) && response.text) {
-        responseText = response.text;
-      } else {
-        responseText = extractResponseText(response);
-      }
-
-      // Store the execution results if we have tool results (only successful ones)
-      if (isModelToolResponse(response) && response.toolResults && resultsProvider && selectedToolkit) {
-        const successfulResults = response.toolResults
-          .map((toolResult, index) => {
-            const toolCall = response.toolCalls?.[index];
-            // Only include successful results
-            if (
-              toolResult.result &&
-              typeof toolResult.result === 'object' &&
-              'successful' in toolResult.result &&
-              toolResult.result.successful === true
-            ) {
-              return {
-                tool: toolCall?.toolName || `tool_${index}`,
-                result: toolResult.result,
-              };
-            }
-            return null;
-          })
-          .filter((result) => result !== null);
-
-        if (successfulResults.length > 0) {
-          resultsProvider.storeExecution(selectedToolkit, useCase, successfulResults);
-          logger.info(
-            `[StoreResults] Stored ${successfulResults.length} successful tool execution results for toolkit: ${selectedToolkit}`,
-          );
+      // Validate all toolkits are connected
+      const invalidToolkits: string[] = [];
+      for (const toolkit of extractedToolkits) {
+        const isConnected = connectedApps.some(app => app.toLowerCase() === toolkit.name.toLowerCase());
+        if (!isConnected) {
+          invalidToolkits.push(toolkit.name);
         }
       }
 
-      // Send response
-      if (!responseText || responseText.trim() === '') {
-        logger.info('Empty response from tool execution, using fallback');
-        sendErrorCallback(
-          callback,
-          "I executed the requested tools but couldn't generate a proper response. The tools may not have completed successfully.",
-        );
-      } else {
-        sendSuccessCallback(callback, responseText);
+      if (invalidToolkits.length > 0) {
+        const errorMsg = `The following apps are not connected: ${invalidToolkits.join(', ')}. Please connect them first in your Composio dashboard.`;
+        logger.info(errorMsg);
+        sendErrorCallback(callback, errorMsg);
+        return;
       }
+
+      // Group consecutive toolkits for optimized execution
+      const toolkitGroups = groupConsecutiveToolkits(extractedToolkits);
+      logger.info(`Grouped into ${toolkitGroups.length} execution groups: ${toolkitGroups.map(g => `${g.name} (${g.use_cases.length} use cases)`).join(', ')}`);
+
+      // Get results provider for storing executions
+      const resultsProvider = runtime.providers.find((p) => p.name === 'COMPOSIO_RESULTS') as ComposioResultsProvider;
+
+      // Phase 1: Prepare all toolkit groups in parallel
+      logger.info('🚀 Preparing all toolkit groups in parallel...');
+      
+      const groupPreparations = await Promise.all(
+        toolkitGroups.map(async (group) => {
+          try {
+            logger.info(`Preparing group: ${group.name} with ${group.use_cases.length} use cases`);
+            
+            // Search tools for each use case in this group
+            const searchPromises = group.use_cases.map(useCase =>
+              composioClient.tools.execute('COMPOSIO_SEARCH_TOOLS', {
+                userId: effectiveUserId,
+                arguments: { use_case: useCase, toolkits: [group.name.toLowerCase()] }
+              })
+            );
+            
+            const searchResults = await Promise.all(searchPromises);
+            const mainToolSlugs = searchResults.map(r => {
+              const result = r as ComposioSearchToolsResponse;
+              if (!result?.successful || !result?.data?.results || result.data.results.length === 0) {
+                throw new Error(`No tools found for ${group.name}`);
+              }
+              return result.data.results[0].tool_slug || result.data.results[0].tool;
+            });
+            
+            // Get dependency graphs for all tools in this group
+            const depGraphPromises = mainToolSlugs.map(slug =>
+              composioService.getToolDependencyGraph(slug, effectiveUserId)
+            );
+            const dependencyGraphs = await Promise.all(depGraphPromises);
+            
+            // Collect all unique tools needed for this group
+            const allToolsToFetch = new Set<string>();
+            mainToolSlugs.forEach(slug => allToolsToFetch.add(slug));
+            dependencyGraphs.forEach(graph => {
+              const parentTools = graph?.parent_tools || [];
+              parentTools.forEach(dep => allToolsToFetch.add(dep.tool_name));
+            });
+            
+            // Fetch all tools for this group
+            const tools = await composioClient.tools.get(effectiveUserId, {
+              tools: Array.from(allToolsToFetch)
+            });
+            
+            logger.info(`✅ Group ${group.name} prepared with ${allToolsToFetch.size} tools`);
+            
+            return {
+              ...group,
+              tools,
+              dependencyGraphs
+            } as PreparedToolkitGroup;
+            
+          } catch (error) {
+            logger.error(`❌ Failed to prepare group ${group.name}:`, error);
+            throw error;
+          }
+        })
+      );
+      
+      logger.info(`✅ All ${groupPreparations.length} groups prepared successfully`);
+
+      // Phase 2: Execute each group sequentially with callbacks
+      logger.info('🔄 Starting sequential execution of prepared groups...');
+      
+      // Store results from previous steps to pass to next steps
+      const previousStepResults: PreviousStepResult[] = [];
+      
+      for (let i = 0; i < groupPreparations.length; i++) {
+        const preparedGroup = groupPreparations[i];
+        logger.info(`\n=== Executing Group ${i+1}/${groupPreparations.length}: ${preparedGroup.name} ===`);
+        
+        try {
+          // Get previous executions for this toolkit and entity
+          const previousExecutions = resultsProvider?.getToolkitExecutions(effectiveUserId, preparedGroup.name) || [];
+          
+          // Execute LLM with pre-fetched tools and enhanced context
+          const prompt = toolExecutionPrompt({
+            userRequest: preparedGroup.use_cases.join(', then '),
+            conversationContext,
+            agentResponseStyle,
+            previousExecutions,
+            dependencyGraph: preparedGroup.dependencyGraphs.flatMap(graph => graph?.parent_tools || []),
+            originalRequest: message.content.text,
+            currentStepIndex: i,
+            totalSteps: groupPreparations.length,
+            previousStepResults,
+          });
+          
+          logger.info(`Executing LLM for ${preparedGroup.name} with ${Object.keys(preparedGroup.tools).length} tools`);
+          
+          const response = await runtime.useModel(ModelType.TEXT_LARGE, {
+            prompt,
+            tools: preparedGroup.tools,
+            toolChoice: 'auto',
+            temperature: COMPOSIO_DEFAULTS.TOOL_EXECUTION_TEMPERATURE,
+          });
+          
+          // Extract response
+          let responseText = '';
+          if (isModelToolResponse(response) && response.text) {
+            responseText = response.text;
+          } else {
+            responseText = extractResponseText(response);
+          }
+          
+          logger.info(`Response text for ${preparedGroup.name}: ${responseText.substring(0, 200)}...`);
+          
+          // Log tool results if available
+          if (isModelToolResponse(response) && response.toolResults) {
+            const toolResultsSummary = response.toolResults.map(r => ({
+              success: r.result && typeof r.result === 'object' && 'successful' in r.result ? r.result.successful : undefined,
+              tool: r.toolName || 'unknown',
+              resultKeys: Object.keys(r.result || {})
+            }));
+            logger.info(`Tool results for ${preparedGroup.name}:`, JSON.stringify(toolResultsSummary, null, 2));
+          }
+          
+          // Store successful results
+          if (isModelToolResponse(response) && response.toolResults && resultsProvider) {
+            const successfulResults = response.toolResults
+              .map((toolResult, index) => {
+                const toolCall = response.toolCalls?.[index];
+                if (
+                  toolResult.result &&
+                  typeof toolResult.result === 'object' &&
+                  'successful' in toolResult.result &&
+                  toolResult.result.successful === true
+                ) {
+                  return {
+                    tool: toolCall?.toolName || `tool_${index}`,
+                    result: toolResult.result,
+                  };
+                }
+                return null;
+              })
+              .filter((result) => result !== null);
+
+            if (successfulResults.length > 0) {
+              const combinedUseCase = preparedGroup.use_cases.join(', then ');
+              resultsProvider.storeExecution(effectiveUserId, preparedGroup.name, combinedUseCase, successfulResults);
+              logger.info(`[StoreResults] Stored ${successfulResults.length} results for ${preparedGroup.name} (entity: ${effectiveUserId})`);
+            }
+          }
+          
+          // Capture results for next steps
+          const currentStepResult: PreviousStepResult = {
+            groupName: preparedGroup.name,
+            useCase: preparedGroup.use_cases.join(', then '),
+            responseText,
+          };
+
+          // Add tool results if available
+          if (isModelToolResponse(response) && response.toolResults) {
+            currentStepResult.toolResults = response.toolResults
+              .filter(tr => tr.result && typeof tr.result === 'object' && 'successful' in tr.result && tr.result.successful)
+              .map(tr => ({
+                tool: (tr.toolName as string) || 'unknown',
+                result: tr.result,
+              }));
+          }
+
+          previousStepResults.push(currentStepResult);
+          logger.info(`[CaptureResults] Captured results for ${preparedGroup.name} - total steps: ${previousStepResults.length}`);
+
+          // Send callback for this group
+          const finalResponse = responseText || `Completed ${preparedGroup.name} operations: ${preparedGroup.use_cases.join(', ')}`;
+          sendSuccessCallback(callback, `[${preparedGroup.name}] ${finalResponse}`);
+          
+          logger.info(`✅ Group ${i+1} completed: ${preparedGroup.name}`);
+          
+        } catch (error) {
+          logger.error(`❌ Group ${i+1} failed: ${preparedGroup.name}`, error);
+          sendErrorCallback(callback, `Failed to execute ${preparedGroup.name} operations`);
+          // Continue with next group even if this one fails
+        }
+      }
+      
+      logger.info('🎯 All toolkit groups executed!');
+      return; // Exit handler after all groups processed
     } catch (error) {
       logger.error('Error in useComposioToolsAction:', error);
       sendErrorCallback(callback, 'Sorry, I encountered an error while trying to use the available tools.', error);

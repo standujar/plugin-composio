@@ -6,39 +6,60 @@ export class ComposioResultsProvider implements Provider {
   description = 'Stores execution results from Composio tools to enable context-aware subsequent actions';
 
   // This data persists for the lifetime of the agent
-  private executionsByToolkit: Map<string, ToolExecution[]> = new Map();
+  // Structure: Map<entityId, Map<toolkit, ToolExecution[]>>
+  private executionsByEntityAndToolkit: Map<string, Map<string, ToolExecution[]>> = new Map();
 
-  // Returns recent executions for all toolkits
+  // Returns recent executions for all toolkits for a specific entity
   async get(
-    _runtime: IAgentRuntime,
-    _message: Memory,
+    runtime: IAgentRuntime,
+    message: Memory,
     _state: State,
   ): Promise<{ text: string; data: { executionsByToolkit: Record<string, ToolExecution[]> } }> {
+    // Determine entity based on multi-user mode
+    const multiUserMode = runtime.getSetting('COMPOSIO_MULTI_USER_MODE') === 'true';
+    const entityId = multiUserMode ? message.entityId : (runtime.getSetting('COMPOSIO_DEFAULT_USER_ID') as string || 'default');
+    
+    const entityExecutions = this.executionsByEntityAndToolkit.get(entityId);
+    
+    if (!entityExecutions) {
+      return {
+        text: 'No Composio executions found for this entity',
+        data: { executionsByToolkit: {} },
+      };
+    }
+    
     const allExecutions: Record<string, ToolExecution[]> = {};
-    this.executionsByToolkit.forEach((executions, toolkit) => {
+    entityExecutions.forEach((executions, toolkit) => {
       // Return the last 3 executions for each toolkit
       allExecutions[toolkit] = executions.slice(-3);
     });
+    
     return {
-      text: `Composio results for ${this.executionsByToolkit.size} toolkits`,
+      text: `Composio results for ${entityExecutions.size} toolkits`,
       data: { executionsByToolkit: allExecutions },
     };
   }
 
-  // Stores an execution for a specific toolkit
-  storeExecution(toolkit: string, useCase: string, results: ToolExecutionResult[]) {
-    if (!this.executionsByToolkit.has(toolkit)) {
-      this.executionsByToolkit.set(toolkit, []);
+  // Stores an execution for a specific toolkit and entity
+  storeExecution(entityId: string, toolkit: string, useCase: string, results: ToolExecutionResult[]) {
+    // Get or create entity map
+    if (!this.executionsByEntityAndToolkit.has(entityId)) {
+      this.executionsByEntityAndToolkit.set(entityId, new Map());
+    }
+    
+    const entityExecutions = this.executionsByEntityAndToolkit.get(entityId)!;
+    
+    // Get or create toolkit executions for this entity
+    if (!entityExecutions.has(toolkit)) {
+      entityExecutions.set(toolkit, []);
     }
 
-    const toolkitExecutions = this.executionsByToolkit.get(toolkit);
-    if (!toolkitExecutions) {
-      return; // This should never happen due to the check above, but satisfies the linter
-    }
+    const toolkitExecutions = entityExecutions.get(toolkit)!;
 
     toolkitExecutions.push({
       timestamp: Date.now(),
       useCase,
+      entityId,
       results,
     });
 
@@ -48,9 +69,14 @@ export class ComposioResultsProvider implements Provider {
     }
   }
 
-  // Retrieves executions for a specific toolkit (only successful ones)
-  getToolkitExecutions(toolkit: string): ToolExecution[] {
-    const executions = this.executionsByToolkit.get(toolkit) || [];
+  // Retrieves executions for a specific toolkit and entity (only successful ones)
+  getToolkitExecutions(entityId: string, toolkit: string): ToolExecution[] {
+    const entityExecutions = this.executionsByEntityAndToolkit.get(entityId);
+    if (!entityExecutions) {
+      return [];
+    }
+    
+    const executions = entityExecutions.get(toolkit) || [];
 
     // Filter to only return executions with successful results
     return executions
@@ -67,14 +93,17 @@ export class ComposioResultsProvider implements Provider {
       .filter((execution) => execution.results.length > 0);
   }
 
-  // Clears executions for a specific toolkit (useful for testing)
-  clearToolkitExecutions(toolkit: string): void {
-    this.executionsByToolkit.delete(toolkit);
+  // Clears executions for a specific toolkit and entity (useful for testing)
+  clearToolkitExecutions(entityId: string, toolkit: string): void {
+    const entityExecutions = this.executionsByEntityAndToolkit.get(entityId);
+    if (entityExecutions) {
+      entityExecutions.delete(toolkit);
+    }
   }
 
   // Clears all executions (useful for testing)
   clearAll(): void {
-    this.executionsByToolkit.clear();
+    this.executionsByEntityAndToolkit.clear();
   }
 }
 
