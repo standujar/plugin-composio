@@ -1,4 +1,5 @@
 import type { HandlerCallback, IAgentRuntime, Memory, State } from '@elizaos/core';
+import { COMPOSIO_DEFAULTS } from '../config/defaults';
 import type { ComposioService } from '../services';
 import { COMPOSIO_SERVICE_NAME } from '../types';
 
@@ -33,8 +34,8 @@ export function buildConversationContext(state: State | undefined, message: Memo
       }
     }
 
-    // Take only the last 5 complete exchanges
-    const recentExchanges = messagePairs.slice(-5);
+    // Take only the last N complete exchanges (configurable)
+    const recentExchanges = messagePairs.slice(-COMPOSIO_DEFAULTS.RECENT_EXCHANGES_LIMIT);
 
     if (recentExchanges.length > 0) {
       conversationContext = `Recent conversation:\n${recentExchanges

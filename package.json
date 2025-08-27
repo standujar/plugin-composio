@@ -1,7 +1,7 @@
 {
   "name": "@standujar/plugin-composio",
   "description": "Composio plugin for elizaOS",
-  "version": "1.3.1",
+  "version": "1.3.2",
   "type": "module",
   "main": "dist/index.js",
   "module": "dist/index.js",
@@ -93,6 +93,60 @@
         "type": "string",
         "description": "Comma-separated list of allowed toolkit names (empty means all toolkits allowed)",
         "default": "",
+        "optional": true
+      },
+      "COMPOSIO_TOOLKIT_EXTRACTION_TEMPERATURE": {
+        "type": "number",
+        "description": "Temperature for toolkit extraction (0-1)",
+        "default": 0.7,
+        "optional": true
+      },
+      "COMPOSIO_TOOLKIT_CATEGORY_EXTRACTION_TEMPERATURE": {
+        "type": "number",
+        "description": "Temperature for toolkit category extraction (0-1)",
+        "default": 0.7,
+        "optional": true
+      },
+      "COMPOSIO_TOOLKIT_CONNECTION_EXTRACTION_TEMPERATURE": {
+        "type": "number",
+        "description": "Temperature for toolkit connection extraction (0-1)",
+        "default": 0.3,
+        "optional": true
+      },
+      "COMPOSIO_TOOLKIT_CONNECTION_RESPONSE_TEMPERATURE": {
+        "type": "number",
+        "description": "Temperature for toolkit connection response (0-1)",
+        "default": 0.7,
+        "optional": true
+      },
+      "COMPOSIO_TOOLKIT_REMOVAL_RESPONSE_TEMPERATURE": {
+        "type": "number",
+        "description": "Temperature for toolkit removal response (0-1)",
+        "default": 0.7,
+        "optional": true
+      },
+      "COMPOSIO_TOOLKIT_BROWSE_RESPONSE_TEMPERATURE": {
+        "type": "number",
+        "description": "Temperature for toolkit browse response (0-1)",
+        "default": 0.7,
+        "optional": true
+      },
+      "COMPOSIO_CONNECTED_TOOLKITS_LIST_RESPONSE_TEMPERATURE": {
+        "type": "number",
+        "description": "Temperature for connected toolkits list response (0-1)",
+        "default": 0.7,
+        "optional": true
+      },
+      "COMPOSIO_RECENT_EXCHANGES_LIMIT": {
+        "type": "number",
+        "description": "Number of recent conversation exchanges to include in context",
+        "default": 10,
+        "optional": true
+      },
+      "COMPOSIO_RECENT_TOOL_SLUGS_LIMIT": {
+        "type": "number",
+        "description": "Number of recent tool slugs to track per user",
+        "default": 5,
         "optional": true
       }
     }

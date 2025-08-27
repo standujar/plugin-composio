@@ -41,4 +41,10 @@ export const COMPOSIO_DEFAULTS = {
   DEFAULT_USER_ID: getEnvString('COMPOSIO_DEFAULT_USER_ID', 'default'),
   MULTI_USER_MODE: getEnvBoolean('COMPOSIO_MULTI_USER_MODE', false),
   ALLOWED_TOOLKITS: getEnvArray('COMPOSIO_ALLOWED_TOOLKITS', []),
+
+  // Conversation context settings
+  RECENT_EXCHANGES_LIMIT: getEnvNumber('COMPOSIO_RECENT_EXCHANGES_LIMIT', 10),
+  
+  // Tool execution history settings
+  RECENT_TOOL_SLUGS_LIMIT: getEnvNumber('COMPOSIO_RECENT_TOOL_SLUGS_LIMIT', 5),
 } as const;

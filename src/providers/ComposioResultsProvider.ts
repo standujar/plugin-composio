@@ -1,4 +1,5 @@
 import type { IAgentRuntime, Memory, Provider, State } from '@elizaos/core';
+import { COMPOSIO_DEFAULTS } from '../config/defaults';
 import type { ToolExecution, ToolExecutionResult } from '../types';
 
 export class ComposioResultsProvider implements Provider {
@@ -31,13 +32,35 @@ export class ComposioResultsProvider implements Provider {
     const allExecutions: Record<string, ToolExecution[]> = {};
     entityExecutions.forEach((executions, toolkit) => {
       // Return the last 3 executions for each toolkit
-      allExecutions[toolkit] = executions.slice(-3);
+      allExecutions[toolkit] = executions.slice(-COMPOSIO_DEFAULTS.RECENT_TOOL_SLUGS_LIMIT);
     });
     
     return {
       text: `Composio results for ${entityExecutions.size} toolkits`,
       data: { executionsByToolkit: allExecutions },
     };
+  }
+
+  // Remove fields with string values longer than 50 chars
+  private filterLongStrings(obj: unknown): unknown {
+    if (!obj || typeof obj !== 'object') return obj;
+    
+    if (Array.isArray(obj)) {
+      return obj.map(item => this.filterLongStrings(item));
+    }
+    
+    const filtered: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(obj)) {
+      // Skip if string value is too long
+      if (typeof value === 'string' && value.length > 50) {
+        continue;
+      }
+      // Recursively filter nested objects
+      filtered[key] = (value && typeof value === 'object') 
+        ? this.filterLongStrings(value) 
+        : value;
+    }
+    return filtered;
   }
 
   // Stores an execution for a specific toolkit and entity
@@ -47,20 +70,32 @@ export class ComposioResultsProvider implements Provider {
       this.executionsByEntityAndToolkit.set(entityId, new Map());
     }
     
-    const entityExecutions = this.executionsByEntityAndToolkit.get(entityId)!;
+    const entityExecutions = this.executionsByEntityAndToolkit.get(entityId);
+    if (!entityExecutions) {
+      throw new Error(`Entity executions not found for entityId: ${entityId}`);
+    }
     
     // Get or create toolkit executions for this entity
     if (!entityExecutions.has(toolkit)) {
       entityExecutions.set(toolkit, []);
     }
 
-    const toolkitExecutions = entityExecutions.get(toolkit)!;
+    const toolkitExecutions = entityExecutions.get(toolkit);
+    if (!toolkitExecutions) {
+      throw new Error(`Toolkit executions not found for toolkit: ${toolkit}`);
+    }
+
+    // Filter out long strings from results
+    const filteredResults = results.map(r => ({
+      tool: r.tool,
+      result: this.filterLongStrings(r.result)
+    }));
 
     toolkitExecutions.push({
       timestamp: Date.now(),
       useCase,
       entityId,
-      results,
+      results: filteredResults,
     });
 
     // Limit to 5 executions per toolkit to avoid excessive memory usage
