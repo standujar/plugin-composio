@@ -19,11 +19,13 @@
       }
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "dependencies": {
     "@composio/core": "0.1.44",
     "@composio/vercel": "0.1.44",
-    "@elizaos/core": "^1.2.9",
+    "@elizaos/core": "1.5.5",
     "truncate-json": "^3.0.0"
   },
   "devDependencies": {
