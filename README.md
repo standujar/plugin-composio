@@ -4,7 +4,7 @@
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![ElizaOS Compatible](https://img.shields.io/badge/ElizaOS-Compatible-green.svg)](https://github.com/elizaOS/eliza)
-[![Version](https://img.shields.io/badge/version-1.3.2-blue.svg)](https://github.com/standujar/plugin-composio/releases/tag/v1.3.2)
+[![Version](https://img.shields.io/badge/version-1.3.3-blue.svg)](https://github.com/standujar/plugin-composio/releases/tag/v1.3.3)
 
 A powerful ElizaOS plugin that integrates **250+ external tool integrations** through [Composio](https://composio.dev). Enable your AI agent to interact with GitHub, Slack, Linear, Google Drive, Notion, and hundreds more services through natural language.
 
