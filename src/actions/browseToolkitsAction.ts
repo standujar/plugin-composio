@@ -10,8 +10,8 @@ import {
 import { COMPOSIO_DEFAULTS } from '../config/defaults';
 import { browseToolkitsExamples } from '../examples';
 import type { ComposioService } from '../services';
-import { toolkitCategoryExtractionPrompt, toolkitBrowseResponsePrompt } from '../templates';
-import { COMPOSIO_SERVICE_NAME, type ToolkitCategoryExtractionResponse, getModelResponseText } from '../types';
+import { userResponsePrompt } from '../templates';
+import { COMPOSIO_SERVICE_NAME, getModelResponseText } from '../types';
 import { sendErrorCallback, sendSuccessCallback } from '../utils';
 
 export const browseToolkitsAction: Action = {
@@ -58,23 +58,9 @@ export const browseToolkitsAction: Action = {
         return;
       }
 
-      // Extract category from user message
-      const extractionResponse = await runtime.useModel(ModelType.OBJECT_SMALL, {
-        prompt: toolkitCategoryExtractionPrompt({
-          userMessage: message.content.text,
-        }),
-        temperature: COMPOSIO_DEFAULTS.TOOLKIT_CATEGORY_EXTRACTION_TEMPERATURE,
-      });
-
-      const { category, confidence } = extractionResponse as ToolkitCategoryExtractionResponse;
-
-      if (!category || confidence === 'low') {
-        sendErrorCallback(
-          callback,
-          'Please specify what type of apps you\'re looking for. Examples: "email apps", "project management tools", "calendar apps", "communication tools", etc.',
-        );
-        return;
-      }
+      // For now, we'll browse all toolkits without category filtering
+      // TODO: Add category extraction if needed later
+      const category = 'all';
 
       logger.info(`User wants to browse toolkits for category: ${category}`);
 
@@ -96,12 +82,16 @@ export const browseToolkitsAction: Action = {
 
       // Format response using template
       const response = await runtime.useModel(ModelType.TEXT_SMALL, {
-        prompt: toolkitBrowseResponsePrompt({
-          category,
-          toolkits,
+        prompt: userResponsePrompt({
+          action: 'browse',
+          data: {
+            category,
+            toolkits,
+            count: toolkits.length,
+          },
           userMessage: message.content.text,
         }),
-        temperature: COMPOSIO_DEFAULTS.TOOLKIT_BROWSE_RESPONSE_TEMPERATURE,
+        temperature: COMPOSIO_DEFAULTS.RESPONSE_TEMPERATURE,
       });
 
       const responseText = getModelResponseText(

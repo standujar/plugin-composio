@@ -11,7 +11,7 @@ import { COMPOSIO_DEFAULTS } from '../config/defaults';
 import { executeToolsExamples } from '../examples';
 import type { ComposioResultsProvider } from '../providers';
 import type { ComposioService } from '../services';
-import { toolExecutionPrompt, toolkitUseCaseExtractionPrompt } from '../templates';
+import { toolExecutionPrompt, workflowExtractionPrompt } from '../templates';
 import {
   COMPOSIO_SERVICE_NAME,
   type ComposioSearchToolsResponse,
@@ -32,18 +32,16 @@ import {
 } from '../utils';
 
 export const useComposioToolsAction: Action = {
-  name: 'USE_COMPOSIO_TOOLS',
+  name: 'USE_TOOLS',
   similes: [
-    'CALL_COMPOSIO_TOOL',
+    'CALL_TOOL',
     'USE_TOOL',
     'CALL_TOOL',
-    'EXECUTE_COMPOSIO_TOOL',
-    'RUN_COMPOSIO_TOOL',
-    'INVOKE_COMPOSIO_TOOL',
-    'USE_COMPOSIO',
-    'COMPOSIO_ACTION',
+    'EXECUTE_TOOL',
+    'RUN_TOOL',
+    'INVOKE_TOOL'
   ],
-  description: 'Use Composio tools to perform tasks with external integrations',
+  description: 'Use tools to perform tasks with external integrations',
 
   validate: async (runtime: IAgentRuntime, _message: Memory, _state?: State): Promise<boolean> => {
     const composioService = runtime.getService<ComposioService>(COMPOSIO_SERVICE_NAME);
@@ -74,15 +72,20 @@ export const useComposioToolsAction: Action = {
       // Build conversation context and get agent style once
       const conversationContext = buildConversationContext(state, message, runtime);
       const agentResponseStyle = getAgentResponseStyle(state);
+      
+      // Get current time from provider if available
+      const timeProvider = runtime.providers?.find(p => p.name === 'TIME');
+      const timeInfo = timeProvider ? await timeProvider.get(runtime, message, state) : null;
+      const currentTime = timeInfo?.values?.time || timeInfo?.text;
 
       // Step 2: Extract toolkit and use case from user request
       const workflowResponse = (await runtime.useModel(ModelType.OBJECT_LARGE, {
-        prompt: toolkitUseCaseExtractionPrompt({
+        prompt: workflowExtractionPrompt({
           connectedApps,
           conversationContext,
           userRequest: message.content.text,
         }),
-        temperature: COMPOSIO_DEFAULTS.TOOLKIT_EXTRACTION_TEMPERATURE,
+        temperature: COMPOSIO_DEFAULTS.EXTRACTION_TEMPERATURE,
       })) as WorkflowExtractionResponse;
 
       const { toolkits } = workflowResponse;
@@ -153,11 +156,15 @@ export const useComposioToolsAction: Action = {
             
             // Collect all unique tools needed for this group
             const allToolsToFetch = new Set<string>();
-            mainToolSlugs.forEach(slug => allToolsToFetch.add(slug));
-            dependencyGraphs.forEach(graph => {
+            for (const slug of mainToolSlugs) {
+              allToolsToFetch.add(slug);
+            }
+            for (const graph of dependencyGraphs) {
               const parentTools = graph?.parent_tools || [];
-              parentTools.forEach(dep => allToolsToFetch.add(dep.tool_name));
-            });
+              for (const dep of parentTools) {
+                allToolsToFetch.add(dep.tool_name);
+              }
+            }
             
             // Fetch all tools for this group
             const tools = await composioClient.tools.get(effectiveUserId, {
@@ -206,6 +213,7 @@ export const useComposioToolsAction: Action = {
             currentStepIndex: i,
             totalSteps: groupPreparations.length,
             previousStepResults,
+            currentTime,
           });
           
           logger.info(`Executing LLM for ${preparedGroup.name} with ${Object.keys(preparedGroup.tools).length} tools`);
@@ -214,7 +222,7 @@ export const useComposioToolsAction: Action = {
             prompt,
             tools: preparedGroup.tools,
             toolChoice: 'auto',
-            temperature: COMPOSIO_DEFAULTS.TOOL_EXECUTION_TEMPERATURE,
+            temperature: COMPOSIO_DEFAULTS.EXECUTION_TEMPERATURE,
           });
           
           // Extract response

@@ -9,26 +9,26 @@ import {
 } from '@elizaos/core';
 import { listConnectedToolkitsExamples } from '../examples';
 import type { ComposioService } from '../services';
-import { connectedToolkitsListResponsePrompt } from '../templates';
+import { userResponsePrompt } from '../templates';
 import { COMPOSIO_SERVICE_NAME, getModelResponseText } from '../types';
 import { sendErrorCallback, sendSuccessCallback } from '../utils';
 import { COMPOSIO_DEFAULTS } from '../config/defaults';
+import { composioToolkitsProvider } from '../providers/ComposioToolkitsProvider';
 
 export const listConnectedAppsAction: Action = {
   name: 'LIST_CONNECTED_APPS',
   similes: [
-    'LIST_COMPOSIO_APPS',
+    'LIST_APPS',
     'SHOW_CONNECTED_APPS',
     'GET_CONNECTED_APPS',
     'CONNECTED_APPS',
-    'COMPOSIO_APPS',
     'MY_APPS',
     'MY_CONNECTED_APPS',
     'CONNECTED_SERVICES',
     'MY_INTEGRATIONS',
     'CONNECTED_TOOLKITS',
   ],
-  description: 'List all connected apps and integrations available in Composio',
+  description: 'List all connected apps and integrations available',
   examples: listConnectedToolkitsExamples,
 
   validate: async (runtime: IAgentRuntime, _message: Memory, _state?: State): Promise<boolean> => {
@@ -44,7 +44,7 @@ export const listConnectedAppsAction: Action = {
     callback?: HandlerCallback,
   ): Promise<void> => {
     try {
-      logger.info('Retrieving connected apps from Composio...');
+      logger.info('Retrieving connected apps...');
 
       // Get the Composio service
       const composioService = runtime.getService<ComposioService>(COMPOSIO_SERVICE_NAME);
@@ -62,21 +62,28 @@ export const listConnectedAppsAction: Action = {
       );
       const connectedApps = await composioService.getConnectedApps(effectiveUserId);
 
-      if (connectedApps.length === 0) {
-        sendSuccessCallback(callback, 'No apps are currently connected.');
-        return;
+      // Feed the cache with available toolkits
+      if (connectedApps.length > 0) {
+        composioToolkitsProvider.updateAvailableToolkits(connectedApps);
+        logger.info(`[ListConnectedApps] Updated toolkit cache with ${connectedApps.length} connected apps`);
       }
 
-      // Use the model to format the response naturally
+      // Always use the model to format the response naturally, even when no apps are connected
       const response = await runtime.useModel(ModelType.TEXT_SMALL, {
-        prompt: connectedToolkitsListResponsePrompt({
-          connectedApps,
+        prompt: userResponsePrompt({
+          action: 'list',
+          data: {
+            toolkits: connectedApps,
+          },
           userMessage: message.content.text,
         }),
-        temperature: COMPOSIO_DEFAULTS.CONNECTED_TOOLKITS_LIST_RESPONSE_TEMPERATURE,
+        temperature: COMPOSIO_DEFAULTS.RESPONSE_TEMPERATURE,
       });
 
-      const responseText = getModelResponseText(response, connectedApps.join(', '));
+      const responseText = getModelResponseText(
+        response, 
+        connectedApps.length > 0 ? connectedApps.join(', ') : 'No apps are currently connected.'
+      );
 
       sendSuccessCallback(callback, responseText);
     } catch (error) {

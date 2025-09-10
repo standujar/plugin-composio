@@ -8,7 +8,7 @@ import type { DependencyTool, ToolExecution, PreviousStepResult } from '../types
  * @param dependencyGraph - Tool dependency information
  * @returns Formatted prompt string for the LLM
  */
-export const contextualPrompt = ({
+export const toolExecutionPrompt = ({
   userRequest,
   conversationContext,
   agentResponseStyle,
@@ -18,6 +18,7 @@ export const contextualPrompt = ({
   currentStepIndex,
   totalSteps,
   previousStepResults = [],
+  currentTime,
 }: {
   userRequest: string;
   conversationContext?: string;
@@ -28,9 +29,11 @@ export const contextualPrompt = ({
   currentStepIndex?: number;
   totalSteps?: number;
   previousStepResults?: PreviousStepResult[];
+  currentTime?: string;
 }) => {
   const contextSection = conversationContext ? `${conversationContext}\n\n` : '';
   const styleSection = agentResponseStyle ? `Style: ${agentResponseStyle}\n\n` : '';
+  const timeSection = currentTime ? `Current Date/Time: ${currentTime}\n\n` : '';
 
   // Build contextual user request for sequential multi-toolkit execution
   let contextualUserRequest = userRequest;
@@ -89,7 +92,7 @@ ${dependencyGraph
 `
       : '';
 
-  return `${styleSection}${contextSection}${executionsSection}${dependencySection}Task: ${contextualUserRequest}
+  return `${timeSection}${styleSection}${contextSection}${executionsSection}${dependencySection}Task: ${contextualUserRequest}
 
 **WORKFLOW GUIDANCE**:
 1. **Check previous executions first** - If you already have the required data (IDs, parameters), use it directly

@@ -55,12 +55,10 @@ COMPOSIO_MULTI_USER_MODE=false               # false: single user with default I
 # Optional: Restrict available toolkits (default: empty, allows all)
 COMPOSIO_ALLOWED_TOOLKITS=gmail,slack,github  # Comma-separated list of allowed toolkit names
 
-# Optional: Fine-tuning parameters
-COMPOSIO_TOOLKIT_EXTRACTION_TEMPERATURE=0.7              # Toolkit & use case extraction (default: 0.7)
-COMPOSIO_TOOL_EXECUTION_TEMPERATURE=0.5                  # Tool execution workflow (default: 0.5)
-COMPOSIO_TOOLKIT_CONNECTION_EXTRACTION_TEMPERATURE=0.3   # Toolkit name extraction (default: 0.3)
-COMPOSIO_TOOLKIT_CONNECTION_RESPONSE_TEMPERATURE=0.7     # Connection response formatting (default: 0.7)
-COMPOSIO_TOOLKIT_REMOVAL_RESPONSE_TEMPERATURE=0.7        # Disconnection response formatting (default: 0.7)
+# Optional: Fine-tuning parameters (simplified to 3 temperatures)
+COMPOSIO_EXTRACTION_TEMPERATURE=0.3   # Precise extraction tasks (default: 0.3)
+COMPOSIO_EXECUTION_TEMPERATURE=0.5    # Tool execution workflows (default: 0.5)
+COMPOSIO_RESPONSE_TEMPERATURE=0.7     # Natural language responses (default: 0.7)
 ```
 
 ### Character Configuration
@@ -334,12 +332,11 @@ sequenceDiagram
   - `connectToolkitAction`: Connect new apps and integrations
   - `disconnectToolkitAction`: Remove app connections
   - `listConnectedToolkitsAction`: Show connected apps and services
-- **Optimized Templates**:
-  - `toolExecutionPrompt`: Minimal execution prompt with workflow guidance
-  - `toolkitUseCaseExtractionPrompt`: Verb + action extraction
-  - `toolkitNameExtractionPrompt`: Extract toolkit names from user messages
-  - `toolkitConnectionResponsePrompt`: Format connection responses
-  - `toolkitDisconnectionResponsePrompt`: Format disconnection responses
+- **Simplified Templates**:
+  - `toolExecutionPrompt`: Tool execution with workflow guidance
+  - `workflowExtractionPrompt`: Extract toolkits and use cases from requests
+  - `toolkitResolutionPrompt`: Resolve toolkit names (extract/select/match)
+  - `userResponsePrompt`: Unified response formatting for all user-facing actions
 - **Context-Aware Analysis**: Avoids fetching data already in conversation
 - **Smart Use Case Combination**: Dependencies execute before main actions
 

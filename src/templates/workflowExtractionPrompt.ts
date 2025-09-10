@@ -1,11 +1,11 @@
 /**
- * Generates a prompt to extract ALL toolkits and use cases from user request
+ * Generates a prompt to extract workflow steps (toolkits and use cases) from user request
  * @param connectedApps - List of connected app names
  * @param conversationContext - Previous conversation context
  * @param userRequest - The user's current request
- * @returns Formatted prompt string for multi-toolkit extraction
+ * @returns Formatted prompt string for workflow extraction
  */
-export const toolkitExtractionPrompt = ({
+export const workflowExtractionPrompt = ({
   connectedApps,
   conversationContext,
   userRequest,
@@ -25,7 +25,7 @@ Rules:
 - Use verb + action format for use cases
 - Order in array defines execution sequence
 - Only select apps from the connected apps list above
-- Exclude Composio internal tools
+- Exclude Composio internal tools and consider that if the app is on the connected list, then the user is already connected
 
 JSON format (always an array):
 {

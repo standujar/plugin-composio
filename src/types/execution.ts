@@ -1,10 +1,49 @@
 /**
+ * Types related to tool execution and model responses
+ */
+
+/**
+ * Tool execution result from previous runs
+ */
+export interface ToolExecution {
+  timestamp: number;
+  useCase: string;
+  entityId: string;  // User/entity who executed this
+  results: Array<{
+    tool: string;
+    result: unknown;
+  }>;
+}
+
+/**
+ * Tool execution result for storing in provider
+ */
+export interface ToolExecutionResult {
+  tool: string;
+  result: unknown;
+}
+
+/**
+ * Results from previous step execution for sequential multi-toolkit workflows
+ */
+export interface PreviousStepResult {
+  groupName: string;
+  useCase: string;
+  responseText: string;
+  toolResults?: Array<{
+    tool: string;
+    result: unknown;
+  }>;
+}
+
+/**
  * Response from model when using tools
  */
 export interface ModelToolResponse {
   text?: string;
   toolResults?: Array<{
     result: unknown;
+    toolName?: string;
     [key: string]: unknown;
   }>;
   toolCalls?: Array<{
@@ -20,6 +59,11 @@ export interface ModelToolResponse {
   finishReason?: string;
   [key: string]: unknown;
 }
+
+/**
+ * Generic model response that can be either string or object with text property
+ */
+export type ModelResponse = string | { text: string; [key: string]: unknown };
 
 /**
  * Type guard to check if response is a ModelToolResponse

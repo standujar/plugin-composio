@@ -1,1 +1,2 @@
-export { ComposioResultsProvider } from './ComposioResultsProvider';
+export { ComposioResultsProvider, composioResultsProvider } from './ComposioResultsProvider';
+export { ComposioToolkitsProvider, composioToolkitsProvider } from './ComposioToolkitsProvider';
