@@ -23,8 +23,8 @@
     "dist"
   ],
   "dependencies": {
-    "@composio/core": "0.1.44",
-    "@composio/vercel": "0.1.44",
+    "@composio/core": "0.1.53",
+    "@composio/vercel": "0.2.9",
     "@elizaos/core": "1.6.1",
     "truncate-json": "^3.0.0"
   },

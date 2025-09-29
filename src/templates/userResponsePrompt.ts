@@ -74,6 +74,25 @@ ${data.toolkits && data.toolkits.length > 0
 - Suggest the user can connect any of these toolkits
 - If too many results, show the most relevant ones`;
 
+    case 'progress':
+      return `${baseContext}
+## WORKFLOW PROGRESS
+- Current step: ${data.currentStepIndex + 1} of ${data.totalSteps}
+- Just completed: ${data.currentGroup} - ${data.currentUseCase}
+- Next step: ${data.nextGroup} - ${data.nextUseCase}
+
+## COMPLETED STEP OUTPUT
+${data.completedResponse}
+
+## RESPONSE GUIDELINES
+- Acknowledge what was just completed (reference the output above)
+- Indicate you're moving to the next step
+- Briefly mention what's coming next
+- Be concise (1-2 sentences max)
+- Use transitional phrases like "Now", "Next", "Moving on to"
+- Make it feel like a smooth workflow
+- Example: "Great! I've found your Linear issues. Now let me compose that email summary..."`;
+
     default:
       return baseContext;
   }

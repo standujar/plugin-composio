@@ -11,7 +11,7 @@ import { COMPOSIO_DEFAULTS } from '../config/defaults';
 import { executeToolsExamples } from '../examples';
 import type { ComposioResultsProvider } from '../providers';
 import type { ComposioService } from '../services';
-import { toolExecutionPrompt, workflowExtractionPrompt } from '../templates';
+import { toolExecutionPrompt, workflowExtractionPrompt, userResponsePrompt } from '../templates';
 import {
   COMPOSIO_SERVICE_NAME,
   type ComposioSearchToolsResponse,
@@ -21,6 +21,7 @@ import {
   type WorkflowExtractionResponse,
   extractResponseText,
   isModelToolResponse,
+  getToolNameFromResult,
 } from '../types';
 import {
   buildConversationContext,
@@ -166,7 +167,7 @@ export const useComposioToolsAction: Action = {
               }
             }
             
-            // Fetch all tools for this group
+            // Fetch tools with VercelProvider wrapping (includes Zod schemas)
             const tools = await composioClient.tools.get(effectiveUserId, {
               tools: Array.from(allToolsToFetch)
             });
@@ -217,10 +218,23 @@ export const useComposioToolsAction: Action = {
           });
           
           logger.info(`Executing LLM for ${preparedGroup.name} with ${Object.keys(preparedGroup.tools).length} tools`);
-          
+
+          const tools = Object.entries(preparedGroup.tools).reduce((acc, [name, tool]) => {
+            const composioTool = tool as any;
+
+            // Simply rename inputSchema to parameters
+            // The AI SDK's asSchema() function handles Zod objects correctly
+            acc[name] = {
+              description: composioTool.description,
+              parameters: composioTool.inputSchema,  // Zod object works with AI SDK!
+              execute: composioTool.execute
+            };
+            return acc;
+          }, {} as any);
+
           const response = await runtime.useModel(ModelType.TEXT_LARGE, {
             prompt,
-            tools: preparedGroup.tools,
+            tools,
             toolChoice: 'auto',
             temperature: COMPOSIO_DEFAULTS.EXECUTION_TEMPERATURE,
           });
@@ -239,7 +253,7 @@ export const useComposioToolsAction: Action = {
           if (isModelToolResponse(response) && response.toolResults) {
             const toolResultsSummary = response.toolResults.map(r => ({
               success: r.result && typeof r.result === 'object' && 'successful' in r.result ? r.result.successful : undefined,
-              tool: r.toolName || 'unknown',
+              tool: getToolNameFromResult(r, response.toolCalls),
               resultKeys: Object.keys(r.result || {})
             }));
             logger.info(`Tool results for ${preparedGroup.name}:`, JSON.stringify(toolResultsSummary, null, 2));
@@ -248,8 +262,7 @@ export const useComposioToolsAction: Action = {
           // Store successful results
           if (isModelToolResponse(response) && response.toolResults && resultsProvider) {
             const successfulResults = response.toolResults
-              .map((toolResult, index) => {
-                const toolCall = response.toolCalls?.[index];
+              .map((toolResult) => {
                 if (
                   toolResult.result &&
                   typeof toolResult.result === 'object' &&
@@ -257,7 +270,7 @@ export const useComposioToolsAction: Action = {
                   toolResult.result.successful === true
                 ) {
                   return {
-                    tool: toolCall?.toolName || `tool_${index}`,
+                    tool: getToolNameFromResult(toolResult, response.toolCalls),
                     result: toolResult.result,
                   };
                 }
@@ -284,7 +297,7 @@ export const useComposioToolsAction: Action = {
             currentStepResult.toolResults = response.toolResults
               .filter(tr => tr.result && typeof tr.result === 'object' && 'successful' in tr.result && tr.result.successful)
               .map(tr => ({
-                tool: (tr.toolName as string) || 'unknown',
+                tool: getToolNameFromResult(tr, response.toolCalls),
                 result: tr.result,
               }));
           }
@@ -292,9 +305,36 @@ export const useComposioToolsAction: Action = {
           previousStepResults.push(currentStepResult);
           logger.info(`[CaptureResults] Captured results for ${preparedGroup.name} - total steps: ${previousStepResults.length}`);
 
-          // Send callback for this group
-          const finalResponse = responseText || `Completed ${preparedGroup.name} operations: ${preparedGroup.use_cases.join(', ')}`;
-          sendSuccessCallback(callback, `[${preparedGroup.name}] ${finalResponse}`);
+          // Prepare the response message
+          const baseResponse = responseText || `Completed ${preparedGroup.name} operations: ${preparedGroup.use_cases.join(', ')}`;
+          
+          // If not the last group, generate a progress transition message
+          if (i < groupPreparations.length - 1) {
+            const nextGroup = groupPreparations[i + 1];
+            
+            const progressResponse = await runtime.useModel(ModelType.TEXT_SMALL, {
+              prompt: userResponsePrompt({
+                action: 'progress',
+                data: {
+                  currentStepIndex: i,
+                  totalSteps: groupPreparations.length,
+                  currentGroup: preparedGroup.name,
+                  currentUseCase: preparedGroup.use_cases.join(', '),
+                  nextGroup: nextGroup.name,
+                  nextUseCase: nextGroup.use_cases.join(', '),
+                  completedResponse: baseResponse,
+                },
+                userMessage: message.content.text,
+              }),
+              temperature: COMPOSIO_DEFAULTS.RESPONSE_TEMPERATURE,
+            });
+            
+            const progressText = extractResponseText(progressResponse);
+            sendSuccessCallback(callback, progressText);
+          } else {
+            // Last group - send the final response directly
+            sendSuccessCallback(callback, baseResponse);
+          }
           
           logger.info(`✅ Group ${i+1} completed: ${preparedGroup.name}`);
           

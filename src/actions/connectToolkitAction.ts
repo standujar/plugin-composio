@@ -25,6 +25,7 @@ import {
 } from '../types';
 import { initializeComposioService, sendErrorCallback, sendSuccessCallback } from '../utils';
 import { composioToolkitsProvider } from '../providers/ComposioToolkitsProvider';
+import { selectToolkitSchema, extractToolkitSchema } from '../types/schemas';
 
 export const addComposioToolkitAction: Action = {
   name: 'CONNECT_APPLICATION',
@@ -82,6 +83,7 @@ export const addComposioToolkitAction: Action = {
             availableToolkits: allowedToolkits,
             mode: 'extract_and_select',
           }),
+          schema: selectToolkitSchema,
           temperature: COMPOSIO_DEFAULTS.EXTRACTION_TEMPERATURE,
         });
 
@@ -105,6 +107,7 @@ export const addComposioToolkitAction: Action = {
             userMessage: message.content.text,
             mode: 'extract',
           }),
+          schema: extractToolkitSchema,
           temperature: COMPOSIO_DEFAULTS.EXTRACTION_TEMPERATURE,
         });
 
@@ -154,6 +157,7 @@ export const addComposioToolkitAction: Action = {
               availableToolkits: retrieveResponse.data.apps,
               mode: 'select',
             }),
+            schema: selectToolkitSchema,
             temperature: COMPOSIO_DEFAULTS.EXTRACTION_TEMPERATURE,
           });
 

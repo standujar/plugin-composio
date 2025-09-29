@@ -407,5 +407,5 @@ This plugin is licensed under the MIT License. See [LICENSE](LICENSE) file for d
 ---
 
 <div align="center">
-Made with ❤️ by the ElizaOS community
+Made with ❤️ by the Stan for the ElizaOS community
 </div>

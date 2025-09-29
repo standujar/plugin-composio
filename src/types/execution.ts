@@ -37,16 +37,17 @@ export interface PreviousStepResult {
 }
 
 /**
- * Response from model when using tools
+ * Response from model when using tools (matches OpenRouter plugin ToolResponse)
  */
 export interface ModelToolResponse {
   text?: string;
   toolResults?: Array<{
+    toolCallId: string;
     result: unknown;
-    toolName?: string;
     [key: string]: unknown;
   }>;
   toolCalls?: Array<{
+    toolCallId: string;
     toolName: string;
     args: unknown;
     [key: string]: unknown;
@@ -107,4 +108,15 @@ export function getModelResponseText(response: unknown, fallback = ''): string {
   }
 
   return fallback;
+}
+
+/**
+ * Helper to get tool name from toolResult by matching with toolCalls
+ */
+export function getToolNameFromResult(
+  toolResult: { toolCallId: string; [key: string]: unknown },
+  toolCalls?: Array<{ toolCallId: string; toolName: string; [key: string]: unknown }>
+): string {
+  const toolCall = toolCalls?.find(tc => tc.toolCallId === toolResult.toolCallId);
+  return toolCall?.toolName || 'unknown';
 }
