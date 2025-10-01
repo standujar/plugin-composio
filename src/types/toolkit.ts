@@ -2,7 +2,7 @@
  * Types related to toolkit management and resolution
  */
 
-import type { DependencyTool, VercelAIToolCollection } from './composio';
+import type { DependencyTool, VercelAIToolCollection, WorkflowPlan } from './composio';
 
 /**
  * Response from workflow extraction prompt - Multi-toolkit format
@@ -12,6 +12,8 @@ export interface WorkflowExtractionResponse {
     name: string;
     use_case: string;
   }>;
+  reasoning: string;
+  use_case: string;
 }
 
 /**
@@ -39,6 +41,11 @@ export interface PreparedToolkitGroup extends ToolkitGroup {
     tool_name: string;
     parent_tools: DependencyTool[];
   }>;
+  workflowPlan?: WorkflowPlan | null;  // The plan for this group's execution
+  searchMetadata?: {  // Metadata from search results
+    reasoning?: string;
+    timeInfo?: any;
+  };
 }
 
 /**

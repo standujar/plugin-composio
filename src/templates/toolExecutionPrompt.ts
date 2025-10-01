@@ -1,4 +1,4 @@
-import type { DependencyTool, ToolExecution, PreviousStepResult } from '../types';
+import type { DependencyTool, ToolExecution, PreviousStepResult, WorkflowPlan } from '../types';
 
 /**
  * Generates a contextual prompt for tool execution
@@ -19,6 +19,7 @@ export const toolExecutionPrompt = ({
   totalSteps,
   previousStepResults = [],
   currentTime,
+  workflowPlan,
 }: {
   userRequest: string;
   conversationContext?: string;
@@ -30,6 +31,7 @@ export const toolExecutionPrompt = ({
   totalSteps?: number;
   previousStepResults?: PreviousStepResult[];
   currentTime?: string;
+  workflowPlan?: WorkflowPlan | null;
 }) => {
   const contextSection = conversationContext ? `${conversationContext}\n\n` : '';
   const styleSection = agentResponseStyle ? `Style: ${agentResponseStyle}\n\n` : '';
@@ -92,7 +94,25 @@ ${dependencyGraph
 `
       : '';
 
-  return `${timeSection}${styleSection}${contextSection}${executionsSection}${dependencySection}Task: ${contextualUserRequest}
+  // Format workflow plan if available
+  const workflowPlanSection = workflowPlan
+    ? `**WORKFLOW PLAN**:
+This plan was generated to guide your execution:
+
+Steps to follow:
+${workflowPlan.workflow_steps
+  ?.map(step => `- ${step.step_id}: ${step.name} (${step.tool})
+  Intent: ${step.intent}
+  Dependencies: ${step.dependencies?.length > 0 ? step.dependencies.join(', ') : 'None'}`)
+  .join('\n') || 'No specific steps defined'}
+
+${workflowPlan.critical_instructions ? `Critical Instructions:\n${workflowPlan.critical_instructions}\n` : ''}
+${workflowPlan.output_guidlines ? `Output Guidelines:\n${workflowPlan.output_guidlines}\n` : ''}
+
+`
+    : '';
+
+  return `${timeSection}${styleSection}${contextSection}${executionsSection}${dependencySection}${workflowPlanSection}Task: ${contextualUserRequest}
 
 **WORKFLOW GUIDANCE**:
 1. **Check previous executions first** - If you already have the required data (IDs, parameters), use it directly
@@ -102,7 +122,9 @@ ${dependencyGraph
    - Connect the output of one tool to the input of another when needed
 3. **Execute main action** with the gathered information
 4. **Don't call redundant tools** if you already have the required data from previous executions
+${workflowPlan ? '5. **Follow the workflow plan** - Use it as a guide while maintaining flexibility to adapt as needed' : ''}
 
 Use the provided tools to complete the user request efficiently.
-Include relevant details and links in your response.`;
+
+**IMPORTANT**: After executing tools, you MUST provide a natural language response describing what was done and the results obtained. Include relevant details and links in your response. Do not just execute tools without explaining the results to the user.`;
 };

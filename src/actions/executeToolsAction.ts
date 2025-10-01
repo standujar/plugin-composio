@@ -11,10 +11,11 @@ import { COMPOSIO_DEFAULTS } from '../config/defaults';
 import { executeToolsExamples } from '../examples';
 import type { ComposioResultsProvider } from '../providers';
 import type { ComposioService } from '../services';
-import { toolExecutionPrompt, workflowExtractionPrompt, userResponsePrompt } from '../templates';
+import { toolExecutionPrompt, workflowExtractionPrompt, userResponsePrompt, planContextPrompt } from '../templates';
 import {
   COMPOSIO_SERVICE_NAME,
   type ComposioSearchToolsResponse,
+  type ComposioCreatePlanResponse,
   type ExtractedToolkit,
   type PreparedToolkitGroup,
   type PreviousStepResult,
@@ -30,6 +31,7 @@ import {
   initializeComposioService,
   sendErrorCallback,
   sendSuccessCallback,
+  ResponseProcessor,
 } from '../utils';
 
 export const useComposioToolsAction: Action = {
@@ -77,7 +79,7 @@ export const useComposioToolsAction: Action = {
       // Get current time from provider if available
       const timeProvider = runtime.providers?.find(p => p.name === 'TIME');
       const timeInfo = timeProvider ? await timeProvider.get(runtime, message, state) : null;
-      const currentTime = timeInfo?.values?.time || timeInfo?.text;
+      const currentTime = String(timeInfo?.values?.time || timeInfo?.text || '');
 
       // Step 2: Extract toolkit and use case from user request
       const workflowResponse = (await runtime.useModel(ModelType.OBJECT_LARGE, {
@@ -89,7 +91,7 @@ export const useComposioToolsAction: Action = {
         temperature: COMPOSIO_DEFAULTS.EXTRACTION_TEMPERATURE,
       })) as WorkflowExtractionResponse;
 
-      const { toolkits } = workflowResponse;
+      const { toolkits, reasoning: extractedReasoning, use_case: extractedUseCase } = workflowResponse;
 
       if (!toolkits || !Array.isArray(toolkits) || toolkits.length === 0) {
         logger.info('Invalid workflow response format:', JSON.stringify(workflowResponse));
@@ -99,7 +101,8 @@ export const useComposioToolsAction: Action = {
 
       // Convert to ExtractedToolkit array
       const extractedToolkits: ExtractedToolkit[] = toolkits.map(t => ({ name: t.name, use_case: t.use_case }));
-      logger.info(`Extracted ${extractedToolkits.length} toolkit operations:`, JSON.stringify(extractedToolkits));
+      logger.debug(`Extracted ${extractedToolkits.length} toolkit operations:`, JSON.stringify(extractedToolkits));
+      logger.debug(`Overall use case: ${extractedUseCase}, Reasoning: ${extractedReasoning}`);
 
       // Validate all toolkits are connected
       const invalidToolkits: string[] = [];
@@ -119,35 +122,58 @@ export const useComposioToolsAction: Action = {
 
       // Group consecutive toolkits for optimized execution
       const toolkitGroups = groupConsecutiveToolkits(extractedToolkits);
-      logger.info(`Grouped into ${toolkitGroups.length} execution groups: ${toolkitGroups.map(g => `${g.name} (${g.use_cases.length} use cases)`).join(', ')}`);
+      logger.debug(`Grouped into ${toolkitGroups.length} execution groups: ${toolkitGroups.map(g => `${g.name} (${g.use_cases.length} use cases)`).join(', ')}`);
 
       // Get results provider for storing executions
       const resultsProvider = runtime.providers.find((p) => p.name === 'COMPOSIO_RESULTS') as ComposioResultsProvider;
 
       // Phase 1: Prepare all toolkit groups in parallel
-      logger.info('🚀 Preparing all toolkit groups in parallel...');
+      logger.debug('🚀 Preparing all toolkit groups in parallel...');
       
       const groupPreparations = await Promise.all(
         toolkitGroups.map(async (group) => {
           try {
-            logger.info(`Preparing group: ${group.name} with ${group.use_cases.length} use cases`);
+            logger.debug(`Preparing group: ${group.name} with ${group.use_cases.length} use cases`);
             
             // Search tools for each use case in this group
             const searchPromises = group.use_cases.map(useCase =>
               composioClient.tools.execute('COMPOSIO_SEARCH_TOOLS', {
                 userId: effectiveUserId,
-                arguments: { use_case: useCase, toolkits: [group.name.toLowerCase()] }
+                arguments: {
+                  use_case: useCase,
+                  toolkits: [group.name.toLowerCase()],
+                  known_fields: ''
+                }
               })
             );
             
             const searchResults = await Promise.all(searchPromises);
-            const mainToolSlugs = searchResults.map(r => {
+
+            // Collect all main_tool_slugs and metadata from search results
+            const allMainToolSlugs = [];
+            let searchReasoning = '';
+            let timeInfo = null;
+
+            for (const r of searchResults) {
               const result = r as ComposioSearchToolsResponse;
-              if (!result?.successful || !result?.data?.results || result.data.results.length === 0) {
+              if (!result?.successful || !result?.data?.main_tool_slugs || result.data.main_tool_slugs.length === 0) {
                 throw new Error(`No tools found for ${group.name}`);
               }
-              return result.data.results[0].tool_slug || result.data.results[0].tool;
-            });
+
+              // Collect all slugs
+              allMainToolSlugs.push(...result.data.main_tool_slugs);
+
+              // Keep the first reasoning and time_info found
+              if (!searchReasoning && result.data.reasoning) {
+                searchReasoning = result.data.reasoning;
+              }
+              if (!timeInfo && result.data.time_info) {
+                timeInfo = result.data.time_info;
+              }
+            }
+
+            // Deduplicate slugs
+            const mainToolSlugs = [...new Set(allMainToolSlugs)];
             
             // Get dependency graphs for all tools in this group
             const depGraphPromises = mainToolSlugs.map(slug =>
@@ -167,17 +193,52 @@ export const useComposioToolsAction: Action = {
               }
             }
             
-            // Fetch tools with VercelProvider wrapping (includes Zod schemas)
-            const tools = await composioClient.tools.get(effectiveUserId, {
-              tools: Array.from(allToolsToFetch)
-            });
-            
-            logger.info(`✅ Group ${group.name} prepared with ${allToolsToFetch.size} tools`);
-            
+            // Parallelize: Fetch tools AND create plan at the same time
+            const [tools, planResult] = await Promise.all([
+              // Fetch all tools with VercelProvider wrapping (includes Zod schemas)
+              composioClient.tools.get(effectiveUserId, {
+                tools: Array.from(allToolsToFetch)
+              }),
+
+              composioClient.tools.execute('COMPOSIO_CREATE_PLAN', {
+                userId: effectiveUserId,
+                arguments: {
+                  difficulty: 'medium',
+                  known_fields: '',
+                  primary_tool_slugs: Array.from(allToolsToFetch),
+                  reasoning: extractedReasoning,
+                  use_case: extractedUseCase
+                }
+              })
+            ]);
+
+            const planResponse = planResult as ComposioCreatePlanResponse;
+            const workflowPlan = planResponse?.data?.workflow_instructions?.plan || null;
+
+            // Log the workflow plan details
+            if (workflowPlan) {
+              logger.debug(`📋 Workflow plan created for ${group.name}:`);
+              if (workflowPlan.workflow_steps?.length > 0) {
+                logger.debug(`  Steps: ${workflowPlan.workflow_steps.map(s => s.name).join(' → ')}`);
+              }
+              if (workflowPlan.critical_instructions) {
+                logger.debug(`  Critical: ${workflowPlan.critical_instructions.substring(0, 100)}...`);
+              }
+            } else {
+              logger.debug(`⚠️ No workflow plan generated for ${group.name}`);
+            }
+
+            logger.debug(`✅ Group ${group.name} prepared with ${allToolsToFetch.size} tools${workflowPlan ? ' and workflow plan' : ''}`);
+
             return {
               ...group,
               tools,
-              dependencyGraphs
+              dependencyGraphs,
+              workflowPlan,
+              searchMetadata: {
+                reasoning: searchReasoning,
+                timeInfo
+              }
             } as PreparedToolkitGroup;
             
           } catch (error) {
@@ -187,7 +248,7 @@ export const useComposioToolsAction: Action = {
         })
       );
       
-      logger.info(`✅ All ${groupPreparations.length} groups prepared successfully`);
+      logger.debug(`✅ All ${groupPreparations.length} groups prepared successfully`);
 
       // Phase 2: Execute each group sequentially with callbacks
       logger.info('🔄 Starting sequential execution of prepared groups...');
@@ -202,6 +263,7 @@ export const useComposioToolsAction: Action = {
         try {
           // Get previous executions for this toolkit and entity
           const previousExecutions = resultsProvider?.getToolkitExecutions(effectiveUserId, preparedGroup.name) || [];
+          logger.debug(`[PreviousExecutions] Found ${previousExecutions.length} previous executions for ${preparedGroup.name} (entity: ${effectiveUserId})`);
           
           // Execute LLM with pre-fetched tools and enhanced context
           const prompt = toolExecutionPrompt({
@@ -215,22 +277,13 @@ export const useComposioToolsAction: Action = {
             totalSteps: groupPreparations.length,
             previousStepResults,
             currentTime,
+            workflowPlan: preparedGroup.workflowPlan,
           });
           
-          logger.info(`Executing LLM for ${preparedGroup.name} with ${Object.keys(preparedGroup.tools).length} tools`);
+          logger.debug(`Executing LLM for ${preparedGroup.name} with ${Object.keys(preparedGroup.tools).length} tools`);
 
-          const tools = Object.entries(preparedGroup.tools).reduce((acc, [name, tool]) => {
-            const composioTool = tool as any;
-
-            // Simply rename inputSchema to parameters
-            // The AI SDK's asSchema() function handles Zod objects correctly
-            acc[name] = {
-              description: composioTool.description,
-              parameters: composioTool.inputSchema,  // Zod object works with AI SDK!
-              execute: composioTool.execute
-            };
-            return acc;
-          }, {} as any);
+          // Use the original tools without modification
+          const tools = preparedGroup.tools;
 
           const response = await runtime.useModel(ModelType.TEXT_LARGE, {
             prompt,
@@ -247,8 +300,8 @@ export const useComposioToolsAction: Action = {
             responseText = extractResponseText(response);
           }
           
-          logger.info(`Response text for ${preparedGroup.name}: ${responseText.substring(0, 200)}...`);
-          
+          logger.debug(`Response text for ${preparedGroup.name}: ${responseText.substring(0, 200)}...`);
+
           // Log tool results if available
           if (isModelToolResponse(response) && response.toolResults) {
             const toolResultsSummary = response.toolResults.map(r => ({
@@ -256,35 +309,26 @@ export const useComposioToolsAction: Action = {
               tool: getToolNameFromResult(r, response.toolCalls),
               resultKeys: Object.keys(r.result || {})
             }));
-            logger.info(`Tool results for ${preparedGroup.name}:`, JSON.stringify(toolResultsSummary, null, 2));
+            logger.debug(`Tool results for ${preparedGroup.name}:`, JSON.stringify(toolResultsSummary, null, 2));
           }
           
-          // Store successful results
-          if (isModelToolResponse(response) && response.toolResults && resultsProvider) {
-            const successfulResults = response.toolResults
-              .map((toolResult) => {
-                if (
-                  toolResult.result &&
-                  typeof toolResult.result === 'object' &&
-                  'successful' in toolResult.result &&
-                  toolResult.result.successful === true
-                ) {
-                  return {
-                    tool: getToolNameFromResult(toolResult, response.toolCalls),
-                    result: toolResult.result,
-                  };
-                }
-                return null;
-              })
-              .filter((result) => result !== null);
+          // Extract tool results once and use for both storage and next steps
+          const allToolResults = ResponseProcessor.extractToolResultsFromSteps(response);
+          const successfulToolResults = ResponseProcessor.filterSuccessfulResults(allToolResults);
 
-            if (successfulResults.length > 0) {
-              const combinedUseCase = preparedGroup.use_cases.join(', then ');
-              resultsProvider.storeExecution(effectiveUserId, preparedGroup.name, combinedUseCase, successfulResults);
-              logger.info(`[StoreResults] Stored ${successfulResults.length} results for ${preparedGroup.name} (entity: ${effectiveUserId})`);
-            }
+          // Store successful results
+          if (isModelToolResponse(response) && resultsProvider && successfulToolResults.length > 0) {
+            const successfulResults = successfulToolResults.map((toolResult) => ({
+              tool: getToolNameFromResult(toolResult, response.toolCalls || []),
+              result: toolResult.result,
+            }));
+
+            const combinedUseCase = preparedGroup.use_cases.join(', then ');
+            logger.debug(`[StoreResults] Storing: ${JSON.stringify(successfulResults.map(r => ({ tool: r.tool, keys: Object.keys(r.result || {}), successful: r.result?.successful })))}`);
+            resultsProvider.storeExecution(effectiveUserId, preparedGroup.name, combinedUseCase, successfulResults);
+            logger.info(`[StoreResults] Stored ${successfulResults.length} results from steps for ${preparedGroup.name} (entity: ${effectiveUserId})`);
           }
-          
+
           // Capture results for next steps
           const currentStepResult: PreviousStepResult = {
             groupName: preparedGroup.name,
@@ -292,18 +336,16 @@ export const useComposioToolsAction: Action = {
             responseText,
           };
 
-          // Add tool results if available
-          if (isModelToolResponse(response) && response.toolResults) {
-            currentStepResult.toolResults = response.toolResults
-              .filter(tr => tr.result && typeof tr.result === 'object' && 'successful' in tr.result && tr.result.successful)
-              .map(tr => ({
-                tool: getToolNameFromResult(tr, response.toolCalls),
-                result: tr.result,
-              }));
+          // Add tool results from steps if available
+          if (successfulToolResults.length > 0) {
+            currentStepResult.toolResults = successfulToolResults.map(tr => ({
+              tool: getToolNameFromResult(tr, isModelToolResponse(response) ? response.toolCalls || [] : []),
+              result: tr.result,
+            }));
           }
 
           previousStepResults.push(currentStepResult);
-          logger.info(`[CaptureResults] Captured results for ${preparedGroup.name} - total steps: ${previousStepResults.length}`);
+          logger.debug(`[CaptureResults] Captured results for ${preparedGroup.name} - total steps: ${previousStepResults.length}`);
 
           // Prepare the response message
           const baseResponse = responseText || `Completed ${preparedGroup.name} operations: ${preparedGroup.use_cases.join(', ')}`;
@@ -336,7 +378,7 @@ export const useComposioToolsAction: Action = {
             sendSuccessCallback(callback, baseResponse);
           }
           
-          logger.info(`✅ Group ${i+1} completed: ${preparedGroup.name}`);
+          logger.debug(`✅ Group ${i+1} completed: ${preparedGroup.name}`);
           
         } catch (error) {
           logger.error(`❌ Group ${i+1} failed: ${preparedGroup.name}`, error);

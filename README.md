@@ -4,7 +4,7 @@
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![ElizaOS Compatible](https://img.shields.io/badge/ElizaOS-Compatible-green.svg)](https://github.com/elizaOS/eliza)
-[![Version](https://img.shields.io/badge/version-1.4.0-blue.svg)](https://github.com/standujar/plugin-composio/releases/tag/v1.4.0)
+[![Version](https://img.shields.io/badge/version-1.5.0-blue.svg)](https://github.com/standujar/plugin-composio/releases/tag/v1.5.0)
 
 A powerful ElizaOS plugin that integrates **250+ external tool integrations** through [Composio](https://composio.dev). Enable your AI agent to interact with GitHub, Slack, Linear, Google Drive, Notion, and hundreds more services through natural language.
 
@@ -19,11 +19,11 @@ A powerful ElizaOS plugin that integrates **250+ external tool integrations** th
 - 🔐 **Secure Authentication**: OAuth and API key management handled by Composio
 - 🚀 **Zero Configuration**: Works out of the box with connected apps
 - 📝 **Vercel AI SDK Integration**: Seamless integration with ElizaOS's function calling
-- ⚡ **Smart Workflow Generation**: Automatically creates multi-step workflows from user requests
+- ⚡ **Smart Workflow Generation**: Automatically creates multi-step workflows using COMPOSIO_CREATE_PLAN API
 - 🎯 **Context-Aware**: Understands conversation context for better tool selection
 - 📊 **Results Provider**: Stores execution results for reuse in subsequent actions
-- 🧠 **Intelligent Dependency Resolution**: Only fetches missing data, avoids redundant API calls
-- ⚙️ **Smart Context Analysis**: Detects when IDs or data are already available in conversation
+- 🧠 **Intelligent Dependency Resolution**: Fetches all required dependencies for proper workflow execution
+- ⚙️ **Enhanced Tool Search**: Uses COMPOSIO_SEARCH_TOOLS API for accurate tool discovery
 
 ## 📦 Installation
 
@@ -302,16 +302,18 @@ sequenceDiagram
     participant R as Results Provider
     participant C as Composio API
     participant T as Tools (GitHub/Slack/etc)
-    
+
     U->>P: Natural language request
-    P->>P: Extract toolkit & use case
+    P->>P: Extract toolkits, reasoning & use case
     P->>R: Get previous executions
     R-->>P: Relevant execution history
     P->>C: COMPOSIO_SEARCH_TOOLS
-    C-->>P: Main tool + dependencies
-    P->>C: Get ALL dependency tools
-    C-->>P: Complete tool collection
-    P->>T: Execute with LLM + tools
+    C-->>P: Main tool slugs
+    P->>C: Get dependency graphs
+    C-->>P: Tool dependencies
+    P->>C: Parallel: tools.get() + COMPOSIO_CREATE_PLAN
+    C-->>P: Tools + Workflow plan
+    P->>T: Execute with LLM + tools + plan
     T-->>P: Tool execution results
     P->>R: Store successful results only
     P->>U: Natural language response
@@ -328,17 +330,20 @@ sequenceDiagram
   - **Multi-user support**: Isolates execution history per entity in multi-user mode
   - **Single-user mode**: Uses default user ID for all executions
 - **Actions**:
-  - `executeToolsAction`: Main action handler with intelligent dependency resolution
+  - `executeToolsAction`: Main action handler with workflow planning and execution
   - `connectToolkitAction`: Connect new apps and integrations
   - `disconnectToolkitAction`: Remove app connections
   - `listConnectedToolkitsAction`: Show connected apps and services
-- **Simplified Templates**:
-  - `toolExecutionPrompt`: Tool execution with workflow guidance
-  - `workflowExtractionPrompt`: Extract toolkits and use cases from requests
+  - `browseToolkitsAction`: Browse available toolkits by category
+- **Templates**:
+  - `toolExecutionPrompt`: Tool execution with workflow plan guidance
+  - `workflowExtractionPrompt`: Extract toolkits with reasoning and overall use case
   - `toolkitResolutionPrompt`: Resolve toolkit names (extract/select/match)
   - `userResponsePrompt`: Unified response formatting for all user-facing actions
-- **Context-Aware Analysis**: Avoids fetching data already in conversation
-- **Smart Use Case Combination**: Dependencies execute before main actions
+- **New API Integration**:
+  - `COMPOSIO_SEARCH_TOOLS`: Returns main tool slugs for accurate tool selection
+  - `COMPOSIO_CREATE_PLAN`: Generates workflow plans with steps and instructions
+- **Workflow Planning**: Generates detailed execution plans for multi-step operations
 
 ## 🔍 Debugging
 
@@ -349,11 +354,12 @@ LOG_LEVEL=debug bun start
 ```
 
 Common debug points:
-- Workflow extraction (verb + action format)
-- Dependency analysis (what data is missing vs available)
-- Use case combination (dependencies + main action)
-- Tool search results from COMPOSIO_SEARCH_TOOLS
-- Context analysis for avoiding redundant fetches
+- Workflow extraction with reasoning and overall use case
+- Tool search results from COMPOSIO_SEARCH_TOOLS API
+- Workflow plan generation from COMPOSIO_CREATE_PLAN API
+- Dependency graph analysis for required tools
+- Parallel tool fetching and plan creation
+- Sequential execution with context passing between steps
 
 ## 🤝 Contributing
 

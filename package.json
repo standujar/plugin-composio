@@ -1,7 +1,7 @@
 {
   "name": "@standujar/plugin-composio",
   "description": "Composio plugin for elizaOS",
-  "version": "1.4.0",
+  "version": "1.6.0",
   "type": "module",
   "main": "dist/index.js",
   "module": "dist/index.js",
@@ -30,6 +30,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",
+    "@elizaos/cli": "^1.6.1",
     "husky": "^9.1.7",
     "prettier": "3.5.3",
     "tsup": "8.4.0",

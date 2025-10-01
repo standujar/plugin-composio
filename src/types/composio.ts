@@ -7,15 +7,12 @@
  */
 export interface ComposioSearchToolsResponse {
   data: {
-    reasoning: string;
-    results: Array<{
-      description: string;
-      input_schema: Record<string, unknown>;
-      order: number;
-      tool?: string;
-      tool_slug?: string;
-      toolkit: string;
-    }>;
+    main_tool_slugs: string[];
+    reasoning?: string;
+    time_info?: {
+      current_time: string;
+      current_time_epoch_in_seconds: number;
+    };
   };
   successful: boolean;
   error: string | null;
@@ -74,6 +71,57 @@ export interface DependencyTool {
   description: string;
   required: boolean;
   reason: string;
+}
+
+/**
+ * Workflow step in the plan
+ */
+export interface WorkflowStep {
+  step_id: string;
+  name: string;
+  intent: string;
+  tool: string;
+  dependencies: string[];
+  parallelizable: boolean;
+}
+
+/**
+ * Workflow plan structure
+ */
+export interface WorkflowPlan {
+  workflow_steps: WorkflowStep[];
+  complexity_assessment?: {
+    complexity: string;
+    data_volume: string;
+    time_sensitivity: string;
+  };
+  tool_capabilities_assessment?: Record<string, any>;
+  workflow_design_considerations?: any;
+  failure_handling?: any;
+  output_format?: any;
+  edge_case_handling?: string[];
+  user_confirmation_guidance?: any;
+  critical_instructions?: string;
+  output_guidlines?: string;
+}
+
+/**
+ * Response from COMPOSIO_CREATE_PLAN
+ */
+export interface ComposioCreatePlanResponse {
+  data: {
+    workflow_instructions: {
+      plan: WorkflowPlan;
+      time_info?: {
+        current_date: string;
+        current_time_epoch_in_seconds: number;
+        message: string;
+      };
+    };
+  };
+  successful: boolean;
+  error: string | null;
+  log_id?: string;
 }
 
 /**

@@ -1,3 +1,5 @@
+import type { ToolExecuteResponse } from '@composio/core';
+
 /**
  * Service name constant for Composio integration
  */
@@ -25,18 +27,6 @@ export interface ComposioServiceConfig {
 
 /**
  * Result of a Composio tool execution
+ * Using the official Composio ToolExecuteResponse type
  */
-export interface ComposioToolResult {
-  /**
-   * Whether the tool execution was successful
-   */
-  success: boolean;
-  /**
-   * The data returned by the tool execution
-   */
-  data?: Record<string, unknown> | string | number | boolean | null;
-  /**
-   * Error message if the execution failed
-   */
-  error?: string;
-}
+export type ComposioToolResult = ToolExecuteResponse;
