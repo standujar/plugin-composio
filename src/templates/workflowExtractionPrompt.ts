@@ -19,34 +19,49 @@ Request: "${userRequest}"
 ${conversationContext ? `Context: ${conversationContext}` : ''}
 Apps: ${connectedApps.join(', ')}
 
-Rules:
-- Extract ALL apps mentioned in the request
-- Each toolkit can appear multiple times with different use cases
-- Use verb + action format for use cases
-- Order in array defines execution sequence
-- Only select apps from the connected apps list above
-- Exclude Composio internal tools and consider that if the app is on the connected list, then the user is already connected
+CRITICAL RULES FOR USE_CASE GENERATION:
+1. Use ONLY these standard action patterns that work across ALL toolkits:
+   - "create [resource]" (create issue, create page, create task, create document)
+   - "update [resource]" (update issue, update page, update task)
+   - "get [resource]" (get issue, get user, get file)
+   - "list [resources]" (list issues, list users, list files)
+   - "delete [resource]" (delete issue, delete page, delete file)
+   - "send [content]" (send message, send email, send notification)
+   - "search [resource]" (search issues, search files, search users)
+   - "add [item]" (add row, add comment, add member)
+   - "remove [item]" (remove row, remove comment, remove member)
+
+2. NEVER include specific details in use_case:
+   ❌ BAD: "integrate risk management info into new sheet"
+   ✅ GOOD: "create spreadsheet"
+
+   ❌ BAD: "notify team about deployment on slack"
+   ✅ GOOD: "send message"
+
+3. Identify the CORE ACTION regardless of context:
+   - "Put data in spreadsheet" → "create spreadsheet" or "update spreadsheet"
+   - "Inform the team" → "send message"
+   - "Track this bug" → "create issue"
+   - "Find all open tasks" → "list issues"
 
 JSON format (always an array):
 {
   "toolkits": [
-    { "name": "app_name", "use_case": "verb + action" },
-    { "name": "app_name", "use_case": "verb + action" }
+    { "name": "app_name", "use_case": "action resource" }
   ]
 }
 
 Examples:
-"Create issue in Linear" → {"toolkits": [{"name": "linear", "use_case": "create issue"}]}
+"Track bug in Linear" → {"toolkits": [{"name": "linear", "use_case": "create issue"}]}
 
-"Create issue in Linear, then notify team on Slack" → {"toolkits": [
-  {"name": "linear", "use_case": "create issue"},
-  {"name": "slack", "use_case": "send message to channel"}
+"Put sales data in Google Sheets and inform team on Slack" → {"toolkits": [
+  {"name": "googlesheets", "use_case": "create spreadsheet"},
+  {"name": "slack", "use_case": "send message"}
 ]}
 
-"Create Linear issue, assign to Alice, then create GitHub PR" → {"toolkits": [
-  {"name": "linear", "use_case": "create issue"},
-  {"name": "linear", "use_case": "assign to user"},
-  {"name": "github", "use_case": "create pull request"}
+"Update the GitHub PR and close the Linear ticket" → {"toolkits": [
+  {"name": "github", "use_case": "update pull request"},
+  {"name": "linear", "use_case": "update issue"}
 ]}
 
 Return JSON only:`;
