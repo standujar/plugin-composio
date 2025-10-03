@@ -5,7 +5,7 @@
 /**
  * User response action types
  */
-export type UserResponseAction = 'connect' | 'disconnect' | 'list' | 'browse';
+export type UserResponseAction = 'connect' | 'disconnect' | 'list' | 'browse' | 'progress';
 
 /**
  * Data structure for user response prompts
@@ -20,6 +20,14 @@ export interface UserResponseData {
   instruction?: string;
   category?: string;
   count?: number;
+  // Progress-specific fields
+  currentStepIndex?: number;
+  totalSteps?: number;
+  currentGroup?: string;
+  currentUseCase?: string;
+  nextGroup?: string;
+  nextUseCase?: string;
+  completedResponse?: string;
 }
 
 /**

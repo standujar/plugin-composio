@@ -1,4 +1,4 @@
-import type { ExtractedToolkit, ToolkitGroup } from '../types/api';
+import type { ExtractedToolkit, ToolkitGroup } from '../types';
 
 /**
  * Groups consecutive toolkits with the same name into execution groups

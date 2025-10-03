@@ -23,8 +23,8 @@ export class ComposioToolkitsProvider implements Provider {
    * Get all toolkit mappings for context
    */
   async get(
-    runtime: IAgentRuntime,
-    message: Memory,
+    _runtime: IAgentRuntime,
+    _message: Memory,
     _state: State,
   ): Promise<{ text: string; data: { mappings: ToolkitMapping[], availableToolkits: string[] } }> {
     const mappings = Array.from(this.toolkitMappings.values());
